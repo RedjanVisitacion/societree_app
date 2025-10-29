@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import 'admin_home_screen.dart';
-import 'student_dashboard.dart';
+import 'societree_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
         if (success && isLogin) {
           final role = (res['role'] ?? '').toString().toLowerCase();
-          final Widget next = role == 'admin' ? const AdminHomeScreen() : const StudentDashboard();
+          final Widget next = role == 'admin' ? const AdminHomeScreen() : const SocieTreeDashboard();
           Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => next));
         }
       }
