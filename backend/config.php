@@ -29,17 +29,66 @@ function db_connect() {
   }
   $mysqli->select_db($DB_NAME);
 
-  // Ensure credentials table exists
+  // Ensure users table exists (supports student_id, role, department, position)
   $create = "CREATE TABLE IF NOT EXISTS users (
       id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      email VARCHAR(255) NOT NULL UNIQUE,
+      student_id VARCHAR(64) UNIQUE,
       password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(32) NOT NULL DEFAULT 'user',
+      department VARCHAR(128) NULL,
+      position VARCHAR(128) NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
   if (!$mysqli->query($create)) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Failed creating table']);
     exit();
+  }
+
+  // In case table exists from older version, ensure columns and indexes exist
+  $mysqli->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS student_id VARCHAR(64) NULL");
+  $mysqli->query("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_id ON users (student_id)");
+  $mysqli->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(32) NOT NULL DEFAULT 'user'");
+  $mysqli->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(128) NULL");
+  $mysqli->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS position VARCHAR(128) NULL");
+  // Try to drop old email column if it exists (MySQL 8+ supports IF EXISTS)
+  $mysqli->query("ALTER TABLE users DROP COLUMN IF EXISTS email");
+
+  // Seed/ensure default admin user
+  $defaultId = '2023304637';
+  $defaultPass = '12345678';
+  $defaultPassHash = password_hash($defaultPass, PASSWORD_BCRYPT);
+  if ($stmt = $mysqli->prepare('SELECT id, password_hash FROM users WHERE student_id = ?')) {
+    $stmt->bind_param('s', $defaultId);
+    $stmt->execute();
+    $stmt->bind_result($uid, $phash);
+    if ($stmt->fetch()) {
+      $stmt->close();
+      // Update password if needed and ensure role/department are correct
+      if (!password_verify($defaultPass, $phash)) {
+        if ($upd = $mysqli->prepare('UPDATE users SET password_hash = ? WHERE student_id = ?')) {
+          $upd->bind_param('ss', $defaultPassHash, $defaultId);
+          $upd->execute();
+          $upd->close();
+        }
+      }
+      if ($upd2 = $mysqli->prepare("UPDATE users SET role = 'admin', department = 'BSIT', position = 'ElecomChairPerson' WHERE student_id = ? AND (
+          role <> 'admin' OR role IS NULL OR
+          department <> 'BSIT' OR department IS NULL OR
+          position <> 'ElecomChairPerson' OR position IS NULL
+        )")) {
+        $upd2->bind_param('s', $defaultId);
+        $upd2->execute();
+        $upd2->close();
+      }
+    } else {
+      $stmt->close();
+      if ($ins = $mysqli->prepare("INSERT INTO users (student_id, password_hash, role, department, position) VALUES (?, ?, 'admin', 'BSIT', 'ElecomChairPerson')")) {
+        $ins->bind_param('ss', $defaultId, $defaultPassHash);
+        $ins->execute();
+        $ins->close();
+      }
+    }
   }
 
   return $mysqli;
