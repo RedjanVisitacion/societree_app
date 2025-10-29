@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
+import 'admin_home_screen.dart';
+import 'student_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,31 +11,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _StudentDashboard extends StatelessWidget {
-  const _StudentDashboard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Student Dashboard'),
-        actions: [
-          IconButton(
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-          ),
-        ],
-      ),
-      body: const Center(child: Text('Welcome, Student')),
-    );
-  }
-}
+// Student and Admin screens are now in separate files for clarity.
 
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
@@ -82,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
         if (success && isLogin) {
           final role = (res['role'] ?? '').toString().toLowerCase();
-          final Widget next = role == 'admin' ? const _HomeScreen() : const _StudentDashboard();
+          final Widget next = role == 'admin' ? const AdminHomeScreen() : const StudentDashboard();
           Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => next));
         }
       }
@@ -247,28 +225,4 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _HomeScreen extends StatelessWidget {
-  const _HomeScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: [
-          IconButton(
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-          ),
-        ],
-      ),
-      body: const Center(child: Text('Logged in')),
-    );
-  }
-}
+// Admin home screen moved to admin_home_screen.dart
