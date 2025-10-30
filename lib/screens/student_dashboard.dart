@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:ui';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'login_screen.dart';
 
 class StudentDashboard extends StatefulWidget {
@@ -23,6 +25,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
   late DateTime _electionEnd;
   Timer? _ticker;
   Duration _remaining = Duration.zero;
+  List<Map<String, dynamic>> _parties = const [];
+  bool _loadingParties = false;
 
   @override
   void initState() {
@@ -31,6 +35,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _electionEnd = DateTime.now().add(const Duration(days: 3, hours: 2, minutes: 38, seconds: 12));
     _tick();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    _loadParties();
   }
 
   void _tick() {
@@ -38,6 +43,32 @@ class _StudentDashboardState extends State<StudentDashboard> {
     setState(() {
       _remaining = _electionEnd.isAfter(now) ? _electionEnd.difference(now) : Duration.zero;
     });
+  }
+
+  Future<void> _loadParties() async {
+    setState(() => _loadingParties = true);
+    try {
+      final baseUrl = const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api');
+      final uri = Uri.parse('$baseUrl/get_parties.php');
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode == 200 && body['success'] == true) {
+        final List<dynamic> raw = body['parties'] ?? [];
+        final items = raw.map<Map<String, dynamic>>((e) {
+          final name = (e['party_name'] ?? '').toString();
+          final hasLogo = e['has_logo'] == true || e['has_logo'] == 1;
+          final logoUrl = hasLogo
+              ? '$baseUrl/get_party_logo.php?name=' + Uri.encodeComponent(name)
+              : null;
+          return {'name': name, 'logoUrl': logoUrl};
+        }).toList();
+        if (mounted) setState(() => _parties = items);
+      }
+    } catch (_) {
+      // ignore network errors; keep placeholders
+    } finally {
+      if (mounted) setState(() => _loadingParties = false);
+    }
   }
 
   @override
@@ -309,27 +340,57 @@ class _StudentDashboardState extends State<StudentDashboard> {
           ],
         ),
         const SizedBox(height: 8),
+        if (_loadingParties) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())) else
         GridView.count(
           crossAxisCount: 3,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          children: List.generate(9, (i) {
+          childAspectRatio: 0.9,
+          children: (_parties.isEmpty ? List<Map<String, dynamic>>.generate(6, (i) => {'name': 'Party ${i+1}', 'logoUrl': null}) : _parties)
+              .map((p) {
+            final logoUrl = p['logoUrl'] as String?;
+            final name = (p['name'] ?? '').toString();
             return Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFF1EEF8),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Center(
-                child: Icon(
-                  [Icons.flag, Icons.account_circle, Icons.hub, Icons.public, Icons.group, Icons.star_border, Icons.circle, Icons.blur_on, Icons.workspace_premium][i % 9],
-                  size: 36,
-                  color: const Color(0xFF6E63F6),
-                ),
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white,
+                    child: ClipOval(
+                      child: logoUrl != null
+                          ? Image.network(
+                              logoUrl,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => const Icon(Icons.flag, color: Color(0xFF6E63F6)),
+                            )
+                          : const Icon(Icons.flag, color: Color(0xFF6E63F6)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
               ),
             );
-          }),
+          }).toList(),
         ),
       ],
     );
