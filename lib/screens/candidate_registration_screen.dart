@@ -237,25 +237,51 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (_pickedImage != null) ...[
-                      AspectRatio(
-                        aspectRatio: 16/9,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(File(_pickedImage!.path), fit: BoxFit.cover),
+                    if (_candidateType == 'Political Party') ...[
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Column(
+                          children: [
+                            CircleAvatar(
+                              radius: 48,
+                              backgroundColor: Colors.grey.shade300,
+                              backgroundImage: _partyLogo != null ? FileImage(File(_partyLogo!.path)) as ImageProvider : null,
+                              child: _partyLogo == null
+                                  ? const Icon(Icons.flag_outlined, size: 36, color: Colors.black54)
+                                  : null,
+                            ),
+                            const SizedBox(height: 8),
+                            if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) ...[
+                              Text(
+                                widget.initialPartyName!,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.titleMedium,
+                              ),
+                            ] else ...[
+                              TextFormField(
+                                controller: _partyNameCtrl,
+                                textAlign: TextAlign.center,
+                                decoration: const InputDecoration(labelText: 'Party name'),
+                                textInputAction: TextInputAction.next,
+                                validator: (v) {
+                                  if (_candidateType == 'Political Party') {
+                                    return (v == null || v.trim().isEmpty) ? 'Party name is required' : null;
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 6),
+                              TextButton.icon(
+                                onPressed: _submitting ? null : _pickPartyLogo,
+                                icon: const Icon(Icons.image_outlined),
+                                label: Text(_partyLogo == null ? 'Upload Party Logo (optional)' : 'Change Party Logo'),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                       const SizedBox(height: 8),
                     ],
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed: _submitting ? null : _pickImage,
-                        icon: const Icon(Icons.photo_library),
-                        label: Text(_pickedImage == null ? 'Choose Photo' : 'Change Photo'),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _studentIdCtrl,
                       decoration: const InputDecoration(labelText: 'Candidate student ID'),
@@ -300,73 +326,7 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                         validator: (v) => v == null || v.isEmpty ? 'Select a candidate type' : null,
                       ),
                     ],
-                    if (_candidateType == 'Political Party') ...[
-                      if (widget.initialCandidateType == 'Political Party' &&
-                          (widget.initialPartyName ?? '').isNotEmpty) ...[
-                        InputDecorator(
-                          decoration: const InputDecoration(labelText: 'Party name'),
-                          child: Text(widget.initialPartyName!),
-                        ),
-                        const SizedBox(height: 8),
-                        InputDecorator(
-                          decoration: const InputDecoration(labelText: 'Party logo'),
-                          child: (_partyLogo != null)
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(
-                                    File(_partyLogo!.path),
-                                    width: 72,
-                                    height: 72,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : const Text('None'),
-                        ),
-                      ] else ...[
-                        TextFormField(
-                          controller: _partyNameCtrl,
-                          decoration: const InputDecoration(labelText: 'Party name'),
-                          textInputAction: TextInputAction.next,
-                          validator: (v) {
-                            if (_candidateType == 'Political Party') {
-                              return (v == null || v.trim().isEmpty) ? 'Party name is required' : null;
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        if (_partyLogo != null) ...[
-                          Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.file(
-                                  File(_partyLogo!.path),
-                                  width: 72,
-                                  height: 72,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              TextButton.icon(
-                                onPressed: _submitting ? null : _pickPartyLogo,
-                                icon: const Icon(Icons.image_outlined),
-                                label: const Text('Change Party Logo'),
-                              ),
-                            ],
-                          ),
-                        ] else ...[
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: OutlinedButton.icon(
-                              onPressed: _submitting ? null : _pickPartyLogo,
-                              icon: const Icon(Icons.image_outlined),
-                              label: const Text('Upload Party Logo (optional)'),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ],
+                    if (_candidateType == 'Political Party') ...[const SizedBox.shrink()],
                     DropdownButtonFormField<String>(
                       value: _organization,
                       items: _orgOptions
@@ -419,6 +379,25 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                       keyboardType: TextInputType.multiline,
                       maxLines: 4,
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 8),
+                    if (_pickedImage != null) ...[
+                      AspectRatio(
+                        aspectRatio: 16/9,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(File(_pickedImage!.path), fit: BoxFit.cover),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: _submitting ? null : _pickImage,
+                        icon: const Icon(Icons.photo_library),
+                        label: Text(_pickedImage == null ? 'Upload Candidate Photo (optional)' : 'Change Candidate Photo'),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
