@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="assets/images/Icon-NOBG.png" alt="SocieTree Logo" width="150" />
+  <img src="assets/images/Icon-NOBG.png" alt="SocieTree Logo" width="300" />
 </p>
-
-<h1 align="center">🌳 SocieTree</h1>
 
 <p align="center">
   <b>Developed by <a href="https://www.facebook.com/redjan.phil.s.visitacion">Redjan Phil S. Visitacion</a></b>  
