@@ -21,11 +21,112 @@ class ApiService {
     return _decode(res);
   }
 
+  Future<Map<String, dynamic>> registerCandidateBase64({
+    required String studentId,
+    required String firstName,
+    required String middleName,
+    required String lastName,
+    required String organization,
+    required String position,
+    required String course,
+    required String yearSection,
+    required String platform,
+    String? photoBase64,
+    String? photoMimeType,
+  }) async {
+    final uri = Uri.parse('$baseUrl/register_candidate.php');
+    final payload = {
+      'student_id': studentId,
+      'first_name': firstName,
+      'middle_name': middleName,
+      'last_name': lastName,
+      'organization': organization,
+      'position': position,
+      'course': course,
+      'year_section': yearSection,
+      'platform': platform,
+      if (photoBase64 != null && photoBase64.isNotEmpty) 'photo_base64': photoBase64,
+      if (photoMimeType != null && photoMimeType.isNotEmpty) 'photo_mime': photoMimeType,
+    };
+    final res = await http.post(
+      uri,
+      headers: _jsonHeaders,
+      body: jsonEncode(payload),
+    ).timeout(_timeout);
+    return _decode(res);
+  }
+
   Future<Map<String, dynamic>> register({required String studentId, required String password}) async {
     final uri = Uri.parse('$baseUrl/register.php');
     final res = await http
         .post(uri, headers: _jsonHeaders, body: jsonEncode({'student_id': studentId, 'password': password}))
         .timeout(_timeout);
+    return _decode(res);
+  }
+
+  Future<Map<String, dynamic>> registerCandidate({
+    required String studentId,
+    required String firstName,
+    required String middleName,
+    required String lastName,
+    required String organization,
+    required String position,
+    required String course,
+    required String yearSection,
+    required String platform,
+    required String photoUrl,
+  }) async {
+    final uri = Uri.parse('$baseUrl/register_candidate.php');
+    final payload = {
+      'student_id': studentId,
+      'first_name': firstName,
+      'middle_name': middleName,
+      'last_name': lastName,
+      'organization': organization,
+      'position': position,
+      'course': course,
+      'year_section': yearSection,
+      'platform': platform,
+      'photo_url': photoUrl,
+    };
+    final res = await http.post(uri, headers: _jsonHeaders, body: jsonEncode(payload)).timeout(_timeout);
+    return _decode(res);
+  }
+
+  Future<Map<String, dynamic>> registerCandidateMultipart({
+    required String studentId,
+    required String firstName,
+    required String middleName,
+    required String lastName,
+    required String organization,
+    required String position,
+    required String course,
+    required String yearSection,
+    required String platform,
+    String? photoFilePath,
+  }) async {
+    final uri = Uri.parse('$baseUrl/register_candidate.php');
+    final req = http.MultipartRequest('POST', uri);
+    req.fields.addAll({
+      'student_id': studentId,
+      'first_name': firstName,
+      'middle_name': middleName,
+      'last_name': lastName,
+      'organization': organization,
+      'position': position,
+      'course': course,
+      'year_section': yearSection,
+      'platform': platform,
+    });
+    if (photoFilePath != null && photoFilePath.isNotEmpty) {
+      try {
+        req.files.add(await http.MultipartFile.fromPath('photo', photoFilePath));
+      } catch (_) {
+        // ignore silently; server will handle missing photo
+      }
+    }
+    final streamed = await req.send().timeout(_timeout);
+    final res = await http.Response.fromStream(streamed);
     return _decode(res);
   }
 
@@ -57,3 +158,4 @@ class ApiService {
     }
   }
 }
+

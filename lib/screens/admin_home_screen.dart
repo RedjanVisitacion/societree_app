@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'login_screen.dart';
+import '../services/api_service.dart';
+import 'candidate_registration_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -42,7 +44,32 @@ class AdminHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(child: Text('Logged in')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Admin Dashboard'),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                icon: const Icon(Icons.person_add),
+                label: const Text('Register Candidate'),
+                onPressed: () {
+                  final api = ApiService(
+                    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api'),
+                  );
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CandidateRegistrationScreen(api: api),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
