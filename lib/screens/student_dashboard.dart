@@ -120,7 +120,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, isElecom ? 0 : 12, 16, 90),
+              padding: EdgeInsets.fromLTRB(16, isElecom ? 0 : 12, 16, 16),
               child: isElecom
                   ? _buildElecomDashboard(theme)
                   : Column(
@@ -152,6 +152,24 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ),
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        onTap: (i) {
+          // Placeholder handlers; wire up as needed
+          if (i != 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(['Home', 'Election', 'Poll History', 'Status'][i])),
+            );
+          }
+        },
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.how_to_vote_outlined), label: 'Election'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Poll History'),
+          BottomNavigationBarItem(icon: Icon(Icons.check), label: 'Status'),
+        ],
       ),
     );
   }
@@ -220,11 +238,36 @@ class _StudentDashboardState extends State<StudentDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('USTP-OROQUIETA Election', style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              Text(
-                'General Election to legislative assembly',
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/images/ELECOM.png',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.contain,
+                      errorBuilder: (c, e, s) => const Icon(Icons.how_to_vote, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('USTP-OROQUIETA Election', style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text(
+                          'General Election to legislative assembly',
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               Row(
@@ -292,7 +335,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Parties & Candidates', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-            TextButton(onPressed: () {}, child: const Text('See All')),
+            TextButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.chevron_right, size: 18),
+              label: const Text('See All'),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -348,7 +396,64 @@ class _StudentDashboardState extends State<StudentDashboard> {
             );
           }).toList(),
         ),
+        const SizedBox(height: 24),
+        Text('Things to know', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 3,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 0.85,
+          children: [
+            _infoCard(
+              context,
+              title: 'Top Manifesto\nHighlights',
+              colors: const [Color(0xFFD2B0F6), Color(0xFF9BB4F7)],
+              icon: Icons.article_outlined,
+            ),
+            _infoCard(
+              context,
+              title: 'FAQs & Voter\nEducation',
+              colors: const [Color(0xFFE6B1C0), Color(0xFFD5A7F7)],
+              icon: Icons.help_outline,
+            ),
+            _infoCard(
+              context,
+              title: 'Find near by\npolling station',
+              colors: const [Color(0xFFA6B6F8), Color(0xFFB7A6F9)],
+              icon: Icons.location_on_outlined,
+            ),
+          ],
+        ),
       ],
+    );
+  }
+
+  Widget _infoCard(BuildContext context, {required String title, required List<Color> colors, required IconData icon}) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            softWrap: true,
+          ),
+        ],
+      ),
     );
   }
 }
