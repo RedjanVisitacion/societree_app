@@ -31,6 +31,8 @@ class ApiService {
     required String course,
     required String yearSection,
     required String platform,
+    String? candidateType,
+    String? partyName,
     String? photoBase64,
     String? photoMimeType,
   }) async {
@@ -45,6 +47,8 @@ class ApiService {
       'course': course,
       'year_section': yearSection,
       'platform': platform,
+      if (candidateType != null && candidateType.isNotEmpty) 'candidate_type': candidateType,
+      if (partyName != null && partyName.isNotEmpty) 'party_name': partyName,
       if (photoBase64 != null && photoBase64.isNotEmpty) 'photo_base64': photoBase64,
       if (photoMimeType != null && photoMimeType.isNotEmpty) 'photo_mime': photoMimeType,
     };
@@ -74,6 +78,8 @@ class ApiService {
     required String course,
     required String yearSection,
     required String platform,
+    String? candidateType,
+    String? partyName,
     required String photoUrl,
   }) async {
     final uri = Uri.parse('$baseUrl/register_candidate.php');
@@ -87,6 +93,8 @@ class ApiService {
       'course': course,
       'year_section': yearSection,
       'platform': platform,
+      if (candidateType != null && candidateType.isNotEmpty) 'candidate_type': candidateType,
+      if (partyName != null && partyName.isNotEmpty) 'party_name': partyName,
       'photo_url': photoUrl,
     };
     final res = await http.post(uri, headers: _jsonHeaders, body: jsonEncode(payload)).timeout(_timeout);
@@ -103,6 +111,8 @@ class ApiService {
     required String course,
     required String yearSection,
     required String platform,
+    String? candidateType,
+    String? partyName,
     String? photoFilePath,
   }) async {
     final uri = Uri.parse('$baseUrl/register_candidate.php');
@@ -118,6 +128,12 @@ class ApiService {
       'year_section': yearSection,
       'platform': platform,
     });
+    if (candidateType != null && candidateType.isNotEmpty) {
+      req.fields['candidate_type'] = candidateType;
+    }
+    if (partyName != null && partyName.isNotEmpty) {
+      req.fields['party_name'] = partyName;
+    }
     if (photoFilePath != null && photoFilePath.isNotEmpty) {
       try {
         req.files.add(await http.MultipartFile.fromPath('photo', photoFilePath));

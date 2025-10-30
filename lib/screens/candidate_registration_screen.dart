@@ -6,7 +6,9 @@ import 'dart:convert';
 
 class CandidateRegistrationScreen extends StatefulWidget {
   final ApiService api;
-  const CandidateRegistrationScreen({super.key, required this.api});
+  final String? initialCandidateType;
+  final String? initialPartyName;
+  const CandidateRegistrationScreen({super.key, required this.api, this.initialCandidateType, this.initialPartyName});
 
   @override
   State<CandidateRegistrationScreen> createState() => _CandidateRegistrationScreenState();
@@ -19,16 +21,19 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
   final _middleNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _platformCtrl = TextEditingController();
+  final _partyNameCtrl = TextEditingController();
   bool _submitting = false;
   String? _organization;
   String? _course;
   String? _position;
   String? _section;
+  String? _candidateType; // Independent or Political Party
   final ImagePicker _picker = ImagePicker();
   XFile? _pickedImage;
 
   final List<String> _orgOptions = const ['USG', 'SITE', 'PAFE', 'AFPROTECHS'];
   final List<String> _courseOptions = const ['BSIT', 'BTLED', 'BFPT'];
+  final List<String> _candidateTypeOptions = const ['Independent', 'Political Party'];
   final Map<String, List<String>> _positionsByOrg = const {
     'USG': [
       'President',
@@ -71,6 +76,15 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
     ],
   };
 
+  @override
+  void initState() {
+    super.initState();
+    _candidateType = widget.initialCandidateType;
+    if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) {
+      _partyNameCtrl.text = widget.initialPartyName!;
+    }
+  }
+
   final Map<String, List<String>> _sectionsByCourse = const {
     'BSIT': [
       'BSIT-1A', 'BSIT-1B', 'BSIT-1C', 'BSIT-1D',
@@ -97,6 +111,7 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
     _firstNameCtrl.dispose();
     _middleNameCtrl.dispose();
     _lastNameCtrl.dispose();
+    _partyNameCtrl.dispose();
     _platformCtrl.dispose();
     super.dispose();
   }
@@ -112,18 +127,24 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      String? b64;
-      String? mime;
+      String? photoPath;
       if (_pickedImage != null) {
-        final bytes = await File(_pickedImage!.path).readAsBytes();
-        b64 = base64Encode(bytes);
-        final ext = _pickedImage!.name.split('.').last.toLowerCase();
-        if (ext == 'png') mime = 'image/png';
-        else if (ext == 'jpg' || ext == 'jpeg') mime = 'image/jpeg';
-        else if (ext == 'webp') mime = 'image/webp';
-        else mime = 'application/octet-stream';
+        try {
+          final f = File(_pickedImage!.path);
+          final len = await f.length();
+          if (len <= 2 * 1024 * 1024) {
+            photoPath = _pickedImage!.path;
+          } else {
+            // Skip large photo to avoid server 500 due to upload limits
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Photo is larger than 2MB, uploading without photo.')),
+            );
+          }
+        } catch (_) {
+          // ignore and proceed without photo
+        }
       }
-      final res = await widget.api.registerCandidateBase64(
+      final res = await widget.api.registerCandidateMultipart(
         studentId: _studentIdCtrl.text.trim(),
         firstName: _firstNameCtrl.text.trim(),
         middleName: _middleNameCtrl.text.trim(),
@@ -133,8 +154,9 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         course: _course!,
         yearSection: _section!,
         platform: _platformCtrl.text.trim(),
-        photoBase64: b64,
-        photoMimeType: mime,
+        candidateType: _candidateType,
+        partyName: _candidateType == 'Political Party' ? _partyNameCtrl.text.trim() : null,
+        photoFilePath: photoPath,
       );
       final success = res['success'] == true;
       final msg = (res['message'] ?? (success ? 'Candidate registered' : 'Failed')).toString();
@@ -147,11 +169,13 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         _middleNameCtrl.clear();
         _lastNameCtrl.clear();
         _platformCtrl.clear();
+        _partyNameCtrl.clear();
         setState(() {
           _organization = null;
           _course = null;
           _position = null;
           _section = null;
+          _candidateType = null;
           _pickedImage = null;
         });
       }
@@ -221,6 +245,40 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                       textInputAction: TextInputAction.next,
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
+                    if (widget.initialCandidateType != null) ...[
+                      InputDecorator(
+                        decoration: const InputDecoration(labelText: 'Candidate type'),
+                        child: Text(widget.initialCandidateType!),
+                      ),
+                    ] else ...[
+                      DropdownButtonFormField<String>(
+                        value: _candidateType,
+                        items: _candidateTypeOptions
+                            .map((t) => DropdownMenuItem<String>(value: t, child: Text(t)))
+                            .toList(),
+                        decoration: const InputDecoration(labelText: 'Candidate type'),
+                        onChanged: (v) => setState(() {
+                          _candidateType = v;
+                          if (_candidateType != 'Political Party') {
+                            _partyNameCtrl.clear();
+                          }
+                        }),
+                        validator: (v) => v == null || v.isEmpty ? 'Select a candidate type' : null,
+                      ),
+                    ],
+                    if (_candidateType == 'Political Party') ...[
+                      TextFormField(
+                        controller: _partyNameCtrl,
+                        decoration: const InputDecoration(labelText: 'Party name'),
+                        textInputAction: TextInputAction.next,
+                        validator: (v) {
+                          if (_candidateType == 'Political Party') {
+                            return (v == null || v.trim().isEmpty) ? 'Party name is required' : null;
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                     DropdownButtonFormField<String>(
                       value: _organization,
                       items: _orgOptions

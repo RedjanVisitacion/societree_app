@@ -1,9 +1,27 @@
 <?php
+header('Content-Type: application/json');
 require_once __DIR__ . '/config.php';
 
 $mysqli = db_connect();
 // Ensure mysqli does not throw exceptions that leak HTML stack traces
 if (function_exists('mysqli_report')) { @mysqli_report(MYSQLI_REPORT_OFF); }
+
+// Convert PHP warnings/notices into exceptions and always return JSON
+set_error_handler(function ($severity, $message, $file, $line) {
+  if (!(error_reporting() & $severity)) { return false; }
+  throw new ErrorException($message, 0, $severity, $file, $line);
+});
+set_exception_handler(function ($e) {
+  http_response_code(500);
+  echo json_encode([
+    'success' => false,
+    'message' => 'Server error',
+    'error' => $e->getMessage(),
+    'file' => $e->getFile(),
+    'line' => $e->getLine(),
+  ]);
+  exit();
+});
 
 // Support both JSON and multipart/form-data
 $isMultipart = (isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') !== false) || !empty($_POST);
@@ -17,6 +35,8 @@ if ($isMultipart) {
   $course       = trim($_POST['course'] ?? '');
   $year_section = trim($_POST['year_section'] ?? '');
   $platform     = trim($_POST['platform'] ?? '');
+  $candidate_type = trim($_POST['candidate_type'] ?? '');
+  $party_name     = trim($_POST['party_name'] ?? '');
   $photo_blob   = null;
   $photo_mime   = null;
   if (!empty($_FILES['photo']) && is_uploaded_file($_FILES['photo']['tmp_name'])) {
@@ -43,6 +63,8 @@ if ($isMultipart) {
   $course       = trim($data['course'] ?? ''); // program
   $year_section = trim($data['year_section'] ?? '');
   $platform     = trim($data['platform'] ?? '');
+  $candidate_type = isset($data['candidate_type']) ? trim($data['candidate_type']) : '';
+  $party_name     = isset($data['party_name']) ? trim($data['party_name']) : '';
   $photo_b64    = $data['photo_base64'] ?? null;
   $photo_mime   = isset($data['photo_mime']) ? trim($data['photo_mime']) : null;
   $photo_blob   = null;
@@ -61,6 +83,13 @@ if ($student_id === '' || $first_name === '' || $last_name === '' || $organizati
   exit();
 }
 
+// If candidate is Political Party, party_name must be provided
+if ($candidate_type !== '' && strcasecmp($candidate_type, 'Political Party') === 0 && $party_name === '') {
+  http_response_code(422);
+  echo json_encode(['success' => false, 'message' => 'Party name is required for Political Party candidate']);
+  exit();
+}
+
 // Ensure table exists
 $createSql = "CREATE TABLE IF NOT EXISTS candidates_registration (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -73,6 +102,8 @@ $createSql = "CREATE TABLE IF NOT EXISTS candidates_registration (
   program VARCHAR(50) NOT NULL,
   year_section VARCHAR(100) NOT NULL,
   platform TEXT NOT NULL,
+  candidate_type VARCHAR(50) NULL,
+  party_name VARCHAR(150) NULL,
   photo_blob LONGBLOB NULL,
   photo_mime VARCHAR(64) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -85,40 +116,106 @@ if (!$mysqli->query($createSql)) {
   exit();
 }
 
-// In case table existed previously without new columns (MySQL 8+ IF NOT EXISTS)
-@$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS photo_blob LONGBLOB NULL");
-@$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS photo_mime VARCHAR(64) NULL");
-@$mysqli->query("ALTER TABLE candidates_registration DROP COLUMN IF EXISTS photo_url");
-
-// Prepare insert
-$sql = "INSERT INTO candidates_registration
-  (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, photo_blob, photo_mime)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-if (!($stmt = $mysqli->prepare($sql))) {
-  http_response_code(500);
-  echo json_encode(['success' => false, 'message' => 'Failed preparing statement']);
-  exit();
+// Helpers: check column existence (compatible with MySQL/MariaDB without IF NOT EXISTS)
+function column_exists(mysqli $mysqli, string $table, string $column): bool {
+  $table_esc = $mysqli->real_escape_string($table);
+  $column_esc = $mysqli->real_escape_string($column);
+  $db = null;
+  if ($resDb = @$mysqli->query('SELECT DATABASE() AS db')) {
+    if ($row = $resDb->fetch_assoc()) {
+      $db = $row['db'] ?? null;
+    }
+    $resDb->close();
+  }
+  if (!$db) { return false; }
+  $db_esc = $mysqli->real_escape_string($db);
+  $sql = "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='{$db_esc}' AND TABLE_NAME='{$table_esc}' AND COLUMN_NAME='{$column_esc}' LIMIT 1";
+  if ($res = @$mysqli->query($sql)) {
+    $exists = $res->num_rows > 0;
+    $res->close();
+    return $exists;
+  }
+  return false;
 }
+
+// Add missing columns safely
+if (!column_exists($mysqli, 'candidates_registration', 'photo_blob')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN photo_blob LONGBLOB NULL");
+}
+if (!column_exists($mysqli, 'candidates_registration', 'photo_mime')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN photo_mime VARCHAR(64) NULL");
+}
+// Drop legacy photo_url if present (guard with DESCRIBE)
+if (column_exists($mysqli, 'candidates_registration', 'photo_url')) {
+  @$mysqli->query("ALTER TABLE candidates_registration DROP COLUMN photo_url");
+}
+if (!column_exists($mysqli, 'candidates_registration', 'candidate_type')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN candidate_type VARCHAR(50) NULL");
+}
+if (!column_exists($mysqli, 'candidates_registration', 'party_name')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_name VARCHAR(150) NULL");
+}
+
+// Prepare insert (robust to older schema)
+$has_candidate_type_col = column_exists($mysqli, 'candidates_registration', 'candidate_type');
+$has_party_name_col = column_exists($mysqli, 'candidates_registration', 'party_name');
 
 $middle = ($middle_name === '') ? null : $middle_name;
 $photo_blob_val = $photo_blob; // may be null
 $photo_mime_val = $photo_mime ? $photo_mime : null;
 
-$stmt->bind_param(
-  'sssssssssss',
-  $student_id,
-  $first_name,
-  $middle,
-  $last_name,
-  $organization,
-  $position,
-  $course,       // stored as program column
-  $year_section,
-  $platform,
-  $photo_blob_val,
-  $photo_mime_val
-);
+if ($has_candidate_type_col && $has_party_name_col) {
+  $sql = "INSERT INTO candidates_registration
+    (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, candidate_type, party_name, photo_blob, photo_mime)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  if (!($stmt = $mysqli->prepare($sql))) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Failed preparing statement']);
+    exit();
+  }
+  $candidate_type_val = ($candidate_type === '' ? null : $candidate_type);
+  $party_name_val = ($party_name === '' ? null : $party_name);
+  $stmt->bind_param(
+    'sssssssssssss',
+    $student_id,
+    $first_name,
+    $middle,
+    $last_name,
+    $organization,
+    $position,
+    $course,
+    $year_section,
+    $platform,
+    $candidate_type_val,
+    $party_name_val,
+    $photo_blob_val,
+    $photo_mime_val
+  );
+} else {
+  // Legacy fallback without candidate type/party name columns
+  $sql = "INSERT INTO candidates_registration
+    (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, photo_blob, photo_mime)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  if (!($stmt = $mysqli->prepare($sql))) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Failed preparing statement (legacy)']);
+    exit();
+  }
+  $stmt->bind_param(
+    'sssssssssss',
+    $student_id,
+    $first_name,
+    $middle,
+    $last_name,
+    $organization,
+    $position,
+    $course,
+    $year_section,
+    $platform,
+    $photo_blob_val,
+    $photo_mime_val
+  );
+}
 
 try {
   if (!$stmt->execute()) {

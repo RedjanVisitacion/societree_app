@@ -56,13 +56,78 @@ class AdminHomeScreen extends StatelessWidget {
                 icon: const Icon(Icons.person_add),
                 label: const Text('Register Candidate'),
                 onPressed: () {
-                  final api = ApiService(
-                    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api'),
-                  );
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CandidateRegistrationScreen(api: api),
-                    ),
+                  showDialog<void>(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (ctx) {
+                      String? candidateType;
+                      final partyCtrl = TextEditingController();
+                      return StatefulBuilder(
+                        builder: (ctx, setState) {
+                          return AlertDialog(
+                            title: const Text('Candidate Type'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                RadioListTile<String>(
+                                  title: const Text('Independent'),
+                                  value: 'Independent',
+                                  groupValue: candidateType,
+                                  onChanged: (v) => setState(() => candidateType = v),
+                                ),
+                                RadioListTile<String>(
+                                  title: const Text('Political Party'),
+                                  value: 'Political Party',
+                                  groupValue: candidateType,
+                                  onChanged: (v) => setState(() => candidateType = v),
+                                ),
+                                if (candidateType == 'Political Party')
+                                  TextField(
+                                    controller: partyCtrl,
+                                    decoration: const InputDecoration(labelText: 'Party name'),
+                                  ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () {
+                                  if (candidateType == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Please select a candidate type')),
+                                    );
+                                    return;
+                                  }
+                                  if (candidateType == 'Political Party' && partyCtrl.text.trim().isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Please enter a party name')),
+                                    );
+                                    return;
+                                  }
+                                  Navigator.of(ctx).pop();
+                                  final api = ApiService(
+                                    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api'),
+                                  );
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => CandidateRegistrationScreen(
+                                        api: api,
+                                        initialCandidateType: candidateType,
+                                        initialPartyName: candidateType == 'Political Party' ? partyCtrl.text.trim() : null,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Continue'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
                   );
                 },
               ),

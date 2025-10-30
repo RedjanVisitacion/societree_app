@@ -99,8 +99,15 @@ function db_connect() {
 
 function read_json_body() {
   $raw = file_get_contents('php://input');
+  if ($raw === false) { return null; }
+  // Trim and drop UTF-8 BOM if present
+  $raw = ltrim($raw);
+  if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
+    $raw = substr($raw, 3);
+  }
+  if ($raw === '' || $raw === null) { return null; }
   $data = json_decode($raw, true);
-  if (!is_array($data)) {
+  if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
     return null;
   }
   return $data;
