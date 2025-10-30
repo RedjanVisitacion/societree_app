@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="SocieTree Logo" width="150" />
+  <img src="assets//images/Icon-NOBG.png" alt="SocieTree Logo" width="150" />
 </p>
 
 <h1 align="center">🌳 SocieTree</h1>
@@ -7,7 +7,7 @@
 <p align="center">
   <b>Developed by <a href="https://www.facebook.com/redjan.phil.s.visitacion">Redjan Phil S. Visitacion</a></b>  
   <br>
-  A specialized module of <b>ELECOM (Electronic Community System)</b> designed to connect and empower student organizations within the University of Science and Technology of Southern Philippines (USTP).
+  A specialized module of <b>ELECOM (Electoral Voting System)</b> designed to connect and empower student organizations within the University of Science and Technology of Southern Philippines (USTP).
 </p>
 
 ---
