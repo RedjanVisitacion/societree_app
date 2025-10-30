@@ -17,11 +17,6 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   String? _selectedCandidate;
   bool _voted = false;
-  final List<String> _elecomCandidates = const [
-    'Candidate A',
-    'Candidate B',
-    'Candidate C',
-  ];
   late DateTime _electionEnd;
   Timer? _ticker;
   Duration _remaining = Duration.zero;
@@ -82,48 +77,50 @@ class _StudentDashboardState extends State<StudentDashboard> {
     final theme = Theme.of(context);
     final isElecom = widget.orgName.toUpperCase().contains('ELECOM');
     return Scaffold(
-      appBar: isElecom
-          ? AppBar(toolbarHeight: 0, elevation: 0)
-          : AppBar(
-              title: Text(widget.orgName),
-              actions: [
-                IconButton(
-                  tooltip: 'Logout',
-                  icon: const Icon(Icons.logout),
-                  onPressed: () async {
-                    final ok = await showDialog<bool>(
-                      context: context,
-                      barrierDismissible: true,
-                      builder: (ctx) {
-                        return BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                          child: AlertDialog(
-                            title: const Text('Logout'),
-                            content: const Text('Are you sure you want to logout?'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-                              ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Logout')),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                    if (ok == true) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
+      appBar: AppBar(
+        title: Text(widget.orgName),
+        actions: [
+          IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.help_outline)),
+          IconButton(
+            tooltip: 'Logout',
+            onPressed: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                barrierDismissible: true,
+                builder: (ctx) {
+                  return BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                    child: AlertDialog(
+                      title: const Text('Logout'),
+                      content: const Text('Are you sure you want to logout?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+                        ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Logout')),
+                      ],
+                    ),
+                  );
+                },
+              );
+              if (ok == true) {
+                if (!mounted) return;
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
+
       body: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.fromLTRB(16, isElecom ? 0 : 12, 16, 90),
               child: isElecom
                   ? _buildElecomDashboard(theme)
                   : Column(
@@ -136,7 +133,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                             child: Image.asset(
                               widget.assetPath,
                               width: 90,
-                              height: 90,
+                              // height: 90,
                               fit: BoxFit.contain,
                               errorBuilder: (c, e, s) => const Icon(Icons.school, size: 56, color: Colors.grey),
                             ),
@@ -190,47 +187,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const SizedBox(width: 40),
-            Row(children: [
-              IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.help_outline)),
-              IconButton(
-                tooltip: 'Logout',
-                onPressed: () async {
-                  final ok = await showDialog<bool>(
-                    context: context,
-                    barrierDismissible: true,
-                    builder: (ctx) {
-                      return BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                        child: AlertDialog(
-                          title: const Text('Logout'),
-                          content: const Text('Are you sure you want to logout?'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-                            ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Logout')),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                  if (ok == true) {
-                    if (!mounted) return;
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout),
-              ),
-            ]),
-          ],
-        ),
-        const SizedBox(height: 16),
         TextField(
           decoration: InputDecoration(
             hintText: 'Search Party/candidates',
@@ -264,10 +220,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Assembly Election', style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+              Text('USTP-OROQUIETA Election', style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(
-                'General Election to legislative assembly of Tamil Nadu 2024',
+                'General Election to legislative assembly',
                 style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
               ),
               const SizedBox(height: 16),
