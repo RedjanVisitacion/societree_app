@@ -8,7 +8,8 @@ class CandidateRegistrationScreen extends StatefulWidget {
   final ApiService api;
   final String? initialCandidateType;
   final String? initialPartyName;
-  const CandidateRegistrationScreen({super.key, required this.api, this.initialCandidateType, this.initialPartyName});
+  final String? initialPartyLogoPath;
+  const CandidateRegistrationScreen({super.key, required this.api, this.initialCandidateType, this.initialPartyName, this.initialPartyLogoPath});
 
   @override
   State<CandidateRegistrationScreen> createState() => _CandidateRegistrationScreenState();
@@ -30,6 +31,7 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
   String? _candidateType; // Independent or Political Party
   final ImagePicker _picker = ImagePicker();
   XFile? _pickedImage;
+  XFile? _partyLogo;
 
   final List<String> _orgOptions = const ['USG', 'SITE', 'PAFE', 'AFPROTECHS'];
   final List<String> _courseOptions = const ['BSIT', 'BTLED', 'BFPT'];
@@ -83,6 +85,9 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
     if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) {
       _partyNameCtrl.text = widget.initialPartyName!;
     }
+    if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyLogoPath ?? '').isNotEmpty) {
+      _partyLogo = XFile(widget.initialPartyLogoPath!);
+    }
   }
 
   final Map<String, List<String>> _sectionsByCourse = const {
@@ -123,11 +128,19 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
     }
   }
 
+  Future<void> _pickPartyLogo() async {
+    final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (img != null) {
+      setState(() => _partyLogo = img);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
       String? photoPath;
+      String? partyLogoPath;
       if (_pickedImage != null) {
         try {
           final f = File(_pickedImage!.path);
@@ -144,6 +157,21 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
           // ignore and proceed without photo
         }
       }
+      if (_partyLogo != null) {
+        try {
+          final f = File(_partyLogo!.path);
+          final len = await f.length();
+          if (len <= 2 * 1024 * 1024) {
+            partyLogoPath = _partyLogo!.path;
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Party logo is larger than 2MB, submitting without logo.')),
+            );
+          }
+        } catch (_) {
+          // ignore and proceed without party logo
+        }
+      }
       final res = await widget.api.registerCandidateMultipart(
         studentId: _studentIdCtrl.text.trim(),
         firstName: _firstNameCtrl.text.trim(),
@@ -157,6 +185,7 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         candidateType: _candidateType,
         partyName: _candidateType == 'Political Party' ? _partyNameCtrl.text.trim() : null,
         photoFilePath: photoPath,
+        partyLogoFilePath: _candidateType == 'Political Party' ? partyLogoPath : null,
       );
       final success = res['success'] == true;
       final msg = (res['message'] ?? (success ? 'Candidate registered' : 'Failed')).toString();
@@ -181,6 +210,7 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
           _section = null;
           _candidateType = widget.initialCandidateType ?? _candidateType;
           _pickedImage = null;
+          _partyLogo = null;
         });
       }
     } catch (_) {
@@ -271,17 +301,71 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                       ),
                     ],
                     if (_candidateType == 'Political Party') ...[
-                      TextFormField(
-                        controller: _partyNameCtrl,
-                        decoration: const InputDecoration(labelText: 'Party name'),
-                        textInputAction: TextInputAction.next,
-                        validator: (v) {
-                          if (_candidateType == 'Political Party') {
-                            return (v == null || v.trim().isEmpty) ? 'Party name is required' : null;
-                          }
-                          return null;
-                        },
-                      ),
+                      if (widget.initialCandidateType == 'Political Party' &&
+                          (widget.initialPartyName ?? '').isNotEmpty) ...[
+                        InputDecorator(
+                          decoration: const InputDecoration(labelText: 'Party name'),
+                          child: Text(widget.initialPartyName!),
+                        ),
+                        const SizedBox(height: 8),
+                        InputDecorator(
+                          decoration: const InputDecoration(labelText: 'Party logo'),
+                          child: (_partyLogo != null)
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(
+                                    File(_partyLogo!.path),
+                                    width: 72,
+                                    height: 72,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : const Text('None'),
+                        ),
+                      ] else ...[
+                        TextFormField(
+                          controller: _partyNameCtrl,
+                          decoration: const InputDecoration(labelText: 'Party name'),
+                          textInputAction: TextInputAction.next,
+                          validator: (v) {
+                            if (_candidateType == 'Political Party') {
+                              return (v == null || v.trim().isEmpty) ? 'Party name is required' : null;
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        if (_partyLogo != null) ...[
+                          Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  File(_partyLogo!.path),
+                                  width: 72,
+                                  height: 72,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              TextButton.icon(
+                                onPressed: _submitting ? null : _pickPartyLogo,
+                                icon: const Icon(Icons.image_outlined),
+                                label: const Text('Change Party Logo'),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OutlinedButton.icon(
+                              onPressed: _submitting ? null : _pickPartyLogo,
+                              icon: const Icon(Icons.image_outlined),
+                              label: const Text('Upload Party Logo (optional)'),
+                            ),
+                          ),
+                        ],
+                      ],
                     ],
                     DropdownButtonFormField<String>(
                       value: _organization,

@@ -114,6 +114,7 @@ class ApiService {
     String? candidateType,
     String? partyName,
     String? photoFilePath,
+    String? partyLogoFilePath,
   }) async {
     final uri = Uri.parse('$baseUrl/register_candidate.php');
     final req = http.MultipartRequest('POST', uri);
@@ -139,6 +140,12 @@ class ApiService {
         req.files.add(await http.MultipartFile.fromPath('photo', photoFilePath));
       } catch (_) {
         // ignore silently; server will handle missing photo
+      }
+    }
+    if (partyLogoFilePath != null && partyLogoFilePath.isNotEmpty) {
+      try {
+        req.files.add(await http.MultipartFile.fromPath('party_logo', partyLogoFilePath));
+      } catch (_) {
       }
     }
     final streamed = await req.send().timeout(_timeout);

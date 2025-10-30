@@ -47,6 +47,17 @@ if ($isMultipart) {
     elseif ($ext === 'webp') $photo_mime = 'image/webp';
     else $photo_mime = 'application/octet-stream';
   }
+  // Optional party logo (multipart)
+  $party_logo_blob = null;
+  $party_logo_mime = null;
+  if (!empty($_FILES['party_logo']) && is_uploaded_file($_FILES['party_logo']['tmp_name'])) {
+    $party_logo_blob = file_get_contents($_FILES['party_logo']['tmp_name']);
+    $ext = strtolower(pathinfo($_FILES['party_logo']['name'], PATHINFO_EXTENSION));
+    if ($ext === 'png') $party_logo_mime = 'image/png';
+    elseif ($ext === 'jpg' || $ext === 'jpeg') $party_logo_mime = 'image/jpeg';
+    elseif ($ext === 'webp') $party_logo_mime = 'image/webp';
+    else $party_logo_mime = 'application/octet-stream';
+  }
 } else {
   $data = read_json_body();
   if ($data === null) {
@@ -75,6 +86,17 @@ if ($isMultipart) {
       if (!$photo_mime) { $photo_mime = 'application/octet-stream'; }
     }
   }
+  // Optional party logo via JSON (base64)
+  $party_logo_blob = null;
+  $party_logo_mime = isset($data['party_logo_mime']) ? trim($data['party_logo_mime']) : null;
+  $party_logo_b64  = $data['party_logo_base64'] ?? null;
+  if (is_string($party_logo_b64) && $party_logo_b64 !== '') {
+    $decoded = base64_decode($party_logo_b64, true);
+    if ($decoded !== false) {
+      $party_logo_blob = $decoded;
+      if (!$party_logo_mime) { $party_logo_mime = 'application/octet-stream'; }
+    }
+  }
 }
 
 if ($student_id === '' || $first_name === '' || $last_name === '' || $organization === '' || $position === '' || $course === '' || $year_section === '' || $platform === '') {
@@ -88,6 +110,33 @@ if ($candidate_type !== '' && strcasecmp($candidate_type, 'Political Party') ===
   http_response_code(422);
   echo json_encode(['success' => false, 'message' => 'Party name is required for Political Party candidate']);
   exit();
+}
+
+// Enforce party nomination limits
+if ($candidate_type !== '' && strcasecmp($candidate_type, 'Political Party') === 0 && $party_name !== '') {
+  $quota = 1;
+  $pos_norm = trim($position);
+  $org_norm = trim($organization);
+  $repPositions = ['BSIT Representative', 'BTLED Representative', 'BFPT Representative'];
+  if (strcasecmp($org_norm, 'USG') === 0 && in_array($pos_norm, $repPositions, true)) {
+    $quota = 2; // allow two reps per department per party
+  }
+
+  if ($stmtq = $mysqli->prepare("SELECT COUNT(*) FROM candidates_registration WHERE candidate_type = 'Political Party' AND party_name = ? AND organization = ? AND position = ?")) {
+    $stmtq->bind_param('sss', $party_name, $org_norm, $pos_norm);
+    $stmtq->execute();
+    $stmtq->bind_result($cnt);
+    $stmtq->fetch();
+    $stmtq->close();
+    if ((int)$cnt >= $quota) {
+      http_response_code(409);
+      $msg = ($quota === 1)
+        ? 'This party already has a candidate for this position.'
+        : 'This party already has the maximum number of representatives for this department.';
+      echo json_encode(['success' => false, 'message' => $msg]);
+      exit();
+    }
+  }
 }
 
 // Ensure table exists
@@ -106,6 +155,8 @@ $createSql = "CREATE TABLE IF NOT EXISTS candidates_registration (
   party_name VARCHAR(150) NULL,
   photo_blob LONGBLOB NULL,
   photo_mime VARCHAR(64) NULL,
+  party_logo_blob LONGBLOB NULL,
+  party_logo_mime VARCHAR(64) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_student_org_position (student_id, organization, position)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
@@ -155,6 +206,12 @@ if (!column_exists($mysqli, 'candidates_registration', 'candidate_type')) {
 if (!column_exists($mysqli, 'candidates_registration', 'party_name')) {
   @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_name VARCHAR(150) NULL");
 }
+if (!column_exists($mysqli, 'candidates_registration', 'party_logo_blob')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_logo_blob LONGBLOB NULL");
+}
+if (!column_exists($mysqli, 'candidates_registration', 'party_logo_mime')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_logo_mime VARCHAR(64) NULL");
+}
 
 // Prepare insert (robust to older schema)
 $has_candidate_type_col = column_exists($mysqli, 'candidates_registration', 'candidate_type');
@@ -163,11 +220,13 @@ $has_party_name_col = column_exists($mysqli, 'candidates_registration', 'party_n
 $middle = ($middle_name === '') ? null : $middle_name;
 $photo_blob_val = $photo_blob; // may be null
 $photo_mime_val = $photo_mime ? $photo_mime : null;
+$party_logo_blob_val = $party_logo_blob; // may be null
+$party_logo_mime_val = $party_logo_mime ? $party_logo_mime : null;
 
 if ($has_candidate_type_col && $has_party_name_col) {
   $sql = "INSERT INTO candidates_registration
-    (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, candidate_type, party_name, photo_blob, photo_mime)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, candidate_type, party_name, photo_blob, photo_mime, party_logo_blob, party_logo_mime)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
   if (!($stmt = $mysqli->prepare($sql))) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Failed preparing statement']);
@@ -176,7 +235,7 @@ if ($has_candidate_type_col && $has_party_name_col) {
   $candidate_type_val = ($candidate_type === '' ? null : $candidate_type);
   $party_name_val = ($party_name === '' ? null : $party_name);
   $stmt->bind_param(
-    'sssssssssssss',
+    'sssssssssssssss',
     $student_id,
     $first_name,
     $middle,
@@ -189,20 +248,22 @@ if ($has_candidate_type_col && $has_party_name_col) {
     $candidate_type_val,
     $party_name_val,
     $photo_blob_val,
-    $photo_mime_val
+    $photo_mime_val,
+    $party_logo_blob_val,
+    $party_logo_mime_val
   );
 } else {
   // Legacy fallback without candidate type/party name columns
   $sql = "INSERT INTO candidates_registration
-    (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, photo_blob, photo_mime)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, photo_blob, photo_mime, party_logo_blob, party_logo_mime)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
   if (!($stmt = $mysqli->prepare($sql))) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Failed preparing statement (legacy)']);
     exit();
   }
   $stmt->bind_param(
-    'sssssssssss',
+    'sssssssssssss',
     $student_id,
     $first_name,
     $middle,
@@ -213,7 +274,9 @@ if ($has_candidate_type_col && $has_party_name_col) {
     $year_section,
     $platform,
     $photo_blob_val,
-    $photo_mime_val
+    $photo_mime_val,
+    $party_logo_blob_val,
+    $party_logo_mime_val
   );
 }
 
