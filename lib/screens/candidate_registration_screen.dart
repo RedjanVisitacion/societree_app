@@ -169,13 +169,17 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         _middleNameCtrl.clear();
         _lastNameCtrl.clear();
         _platformCtrl.clear();
-        _partyNameCtrl.clear();
+        if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) {
+          _partyNameCtrl.text = widget.initialPartyName!;
+        } else {
+          _partyNameCtrl.clear();
+        }
         setState(() {
           _organization = null;
           _course = null;
           _position = null;
           _section = null;
-          _candidateType = null;
+          _candidateType = widget.initialCandidateType ?? _candidateType;
           _pickedImage = null;
         });
       }
