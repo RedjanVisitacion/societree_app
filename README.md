@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets//images/Icon-NOBG.png" alt="SocieTree Logo" width="150" />
+  <img src="assets/images/Icon-NOBG.png" alt="SocieTree Logo" width="150" />
 </p>
 
 <h1 align="center">🌳 SocieTree</h1>
@@ -53,7 +53,7 @@ Acting as both a **technological platform** and a **community hub**, it facilita
 
 **Developed by:**  
 [**Redjan Phil S. Visitacion**](https://www.facebook.com/redjan.phil.s.visitacion)  
-Creator of the **ELECOM (Electronic Community System)** project — a digital initiative that enhances communication, organization, and collaboration across academic communities.
+Creator of the **ELECOM (Elecoral Voting System)** project — a digital initiative that enhances communication, organization, and collaboration across academic communities.
 
 > _"Rooted in connection, growing through collaboration — that’s the power of SocieTree."_ 🌱
 
@@ -61,7 +61,7 @@ Creator of the **ELECOM (Electronic Community System)** project — a digital in
 
 ## 📬 Contact
 For collaborations or inquiries:  
-📧 **redjan.visitacion.dev@gmail.com**  
+📧 **rpsvcodes@gmail.com**  
 🌐 **Facebook:** [facebook.com/redjan.phil.s.visitacion](https://www.facebook.com/redjan.phil.s.visitacion)
 
 ---
