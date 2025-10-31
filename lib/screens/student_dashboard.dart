@@ -30,6 +30,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   // Omnibus slideshow handled via external widget now
   List<Map<String, dynamic>> _candidates = const [];
   bool _showAllParties = false;
+  Timer? _autoCollapseTimer;
 
   @override
   void initState() {
@@ -101,6 +102,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   void dispose() {
     _ticker?.cancel();
     // Omnibus slideshow lifecycle handled in external widget
+    _autoCollapseTimer?.cancel();
     super.dispose();
   }
 
@@ -149,12 +151,24 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
       body: isElecom
           ? Center(
-              child: SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: _buildElecomDashboard(theme),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (_showAllParties && n is ScrollUpdateNotification && n.metrics.pixels > 0) {
+                    _autoCollapseTimer?.cancel();
+                    _autoCollapseTimer = Timer(const Duration(seconds: 3), () {
+                      if (!mounted) return;
+                      setState(() => _showAllParties = false);
+                    });
+                  }
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: _buildElecomDashboard(theme),
+                    ),
                   ),
                 ),
               ),
