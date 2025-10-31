@@ -5,6 +5,7 @@ class ThingsToKnowGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: unused_element
     Widget card(String title, List<Color> colors, IconData icon) {
       return Container(
         decoration: BoxDecoration(

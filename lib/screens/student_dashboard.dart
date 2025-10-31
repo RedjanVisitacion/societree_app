@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:ui';
@@ -193,21 +195,27 @@ class _StudentDashboardState extends State<StudentDashboard> {
               ),
             ),
       bottomNavigationBar: isElecom
-          ? BottomNavigationBar(
-              currentIndex: 0,
-              onTap: (i) {
-                if (i != 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(['Home', 'Election', 'Poll History', 'Status'][i])),
-                  );
-                }
-              },
-              type: BottomNavigationBarType.fixed,
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-                BottomNavigationBarItem(icon: Icon(Icons.how_to_vote_outlined), label: 'Election'),
-                BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Poll History'),
-                BottomNavigationBarItem(icon: Icon(Icons.check), label: 'Status'),
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Divider(height: 1, thickness: 1),
+                BottomNavigationBar(
+                  currentIndex: 0,
+                  onTap: (i) {
+                    if (i != 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(['Home', 'Election', 'Poll History', 'Status'][i])),
+                      );
+                    }
+                  },
+                  type: BottomNavigationBarType.fixed,
+                  items: const [
+                    BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+                    BottomNavigationBarItem(icon: Icon(Icons.how_to_vote_outlined), label: 'Election'),
+                    BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Poll History'),
+                    BottomNavigationBarItem(icon: Icon(Icons.check), label: 'Status'),
+                  ],
+                ),
               ],
             )
           : null,
