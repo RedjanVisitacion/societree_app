@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:convert';
+// import 'dart:convert';
 
 class CandidateRegistrationScreen extends StatefulWidget {
   final ApiService api;

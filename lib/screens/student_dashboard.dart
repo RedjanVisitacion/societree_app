@@ -22,6 +22,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Duration _remaining = Duration.zero;
   List<Map<String, dynamic>> _parties = const [];
   bool _loadingParties = false;
+  final PageController _omniController = PageController(viewportFraction: 1.0);
+  Timer? _slideTimer;
+  List<String> _omnibusImages = const [];
+  int get _omniPageCount => (_omnibusImages.length + 1) ~/ 2; // 2 images per page
+  int _omniCurrentPage = 0;
 
   @override
   void initState() {
@@ -31,6 +36,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _tick();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     _loadParties();
+    _loadOmnibusImages();
   }
 
   void _tick() {
@@ -69,6 +75,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _slideTimer?.cancel();
+    _omniController.dispose();
     super.dispose();
   }
 
@@ -330,6 +338,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ],
           ),
         ),
+        if (_omnibusImages.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildOmnibusSlideshow(theme),
+        ],
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -453,6 +465,173 @@ class _StudentDashboardState extends State<StudentDashboard> {
             softWrap: true,
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _loadOmnibusImages() async {
+    try {
+      final manifestContent = await DefaultAssetBundle.of(context).loadString('AssetManifest.json');
+      final Map<String, dynamic> manifestMap = jsonDecode(manifestContent) as Map<String, dynamic>;
+      final images = manifestMap.keys
+          .where((k) => k.startsWith('assets/images/omnibus/'))
+          .where((k) => k.toLowerCase().endsWith('.png') || k.toLowerCase().endsWith('.jpg') || k.toLowerCase().endsWith('.jpeg') || k.toLowerCase().endsWith('.webp'))
+          .toList()
+        ..sort();
+      if (mounted) {
+        setState(() => _omnibusImages = images);
+        _startSlideshowTimer();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _omnibusImages = const []);
+    }
+  }
+
+  void _startSlideshowTimer() {
+    _slideTimer?.cancel();
+    if (_omniPageCount == 0) return;
+    _slideTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || _omniPageCount == 0 || !_omniController.hasClients) return;
+      final target = (_omniCurrentPage + 1) % _omniPageCount;
+      _omniController.animateToPage(
+        target,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  Widget _buildOmnibusSlideshow(ThemeData theme) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: 140,
+        child: GestureDetector(
+          onTap: () {
+            final startImageIndex = (_omniCurrentPage * 2).clamp(0, _omnibusImages.isEmpty ? 0 : _omnibusImages.length - 1);
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => _OmnibusReaderScreen(
+                  images: _omnibusImages,
+                  initialIndex: startImageIndex,
+                ),
+              ),
+            );
+          },
+          child: Stack(
+          children: [
+            PageView.builder(
+              controller: _omniController,
+              itemCount: _omniPageCount,
+              onPageChanged: (i) {
+                if (mounted) setState(() => _omniCurrentPage = i);
+              },
+              itemBuilder: (context, index) {
+                final start = index * 2;
+                final slice = _omnibusImages.skip(start).take(2).toList();
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: List.generate(2, (i) => i)
+                      .map((i) {
+                        final hasImage = i < slice.length;
+                        return Expanded(
+                          child: Container(
+                            // No margins or background so images are seamlessly merged horizontally
+                            margin: EdgeInsets.zero,
+                            color: Colors.transparent,
+                            child: hasImage
+                                ? Image.asset(
+                                    slice[i],
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.center,
+                                    errorBuilder: (c, e, s) => const Center(child: Icon(Icons.image_not_supported)),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        );
+                      })
+                      .toList(),
+                );
+              },
+            ),
+            Positioned(
+              bottom: 8,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_omniPageCount, (i) => i)
+                    .map((i) {
+                      final isActive = (_omniCurrentPage == i);
+                      return Container(
+                        width: isActive ? 12 : 8,
+                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          color: isActive ? const Color(0xFF6E63F6) : Colors.white70,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      );
+                    })
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+}
+
+class _OmnibusReaderScreen extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+  const _OmnibusReaderScreen({Key? key, required this.images, required this.initialIndex}) : super(key: key);
+  @override
+  State<_OmnibusReaderScreen> createState() => _OmnibusReaderScreenState();
+}
+
+class _OmnibusReaderScreenState extends State<_OmnibusReaderScreen> {
+  late final PageController _controller;
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Omnibus'),
+      ),
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.images.length,
+        itemBuilder: (context, index) {
+          final path = widget.images[index];
+          return Center(
+            child: InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 4.0,
+              child: Image.asset(
+                path,
+                fit: BoxFit.contain,
+                errorBuilder: (c, e, s) => const Icon(Icons.image_not_supported, color: Colors.white),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
