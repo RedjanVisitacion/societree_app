@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -32,6 +33,7 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
   final ImagePicker _picker = ImagePicker();
   XFile? _pickedImage;
   XFile? _partyLogo;
+  bool _pickingMedia = false;
 
   final List<String> _orgOptions = const ['USG', 'SITE', 'PAFE', 'AFPROTECHS'];
   final List<String> _courseOptions = const ['BSIT', 'BTLED', 'BFPT'];
@@ -122,16 +124,37 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
   }
 
   Future<void> _pickImage() async {
-    final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (img != null) {
-      setState(() => _pickedImage = img);
+    if (_pickingMedia) return;
+    setState(() => _pickingMedia = true);
+    try {
+      final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (img != null) {
+        setState(() => _pickedImage = img);
+      }
+    } on PlatformException catch (_) {
+      // ignore: use_build_context_synchronously
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Another picker is active. Please try again.')));
+      }
+    } finally {
+      if (mounted) setState(() => _pickingMedia = false);
     }
   }
 
   Future<void> _pickPartyLogo() async {
-    final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (img != null) {
-      setState(() => _partyLogo = img);
+    if (_pickingMedia) return;
+    setState(() => _pickingMedia = true);
+    try {
+      final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (img != null) {
+        setState(() => _partyLogo = img);
+      }
+    } on PlatformException catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Another picker is active. Please try again.')));
+      }
+    } finally {
+      if (mounted) setState(() => _pickingMedia = false);
     }
   }
 
@@ -145,12 +168,12 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         try {
           final f = File(_pickedImage!.path);
           final len = await f.length();
-          if (len <= 2 * 1024 * 1024) {
+          if (len <= 900 * 1024) {
             photoPath = _pickedImage!.path;
           } else {
             // Skip large photo to avoid server 500 due to upload limits
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Photo is larger than 2MB, uploading without photo.')),
+              const SnackBar(content: Text('Photo is larger than 900KB, uploading without photo.')),
             );
           }
         } catch (_) {
@@ -161,11 +184,11 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         try {
           final f = File(_partyLogo!.path);
           final len = await f.length();
-          if (len <= 2 * 1024 * 1024) {
+          if (len <= 900 * 1024) {
             partyLogoPath = _partyLogo!.path;
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Party logo is larger than 2MB, submitting without logo.')),
+              const SnackBar(content: Text('Party logo is larger than 900KB, submitting without logo.')),
             );
           }
         } catch (_) {
@@ -198,19 +221,23 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         _middleNameCtrl.clear();
         _lastNameCtrl.clear();
         _platformCtrl.clear();
-        if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) {
-          _partyNameCtrl.text = widget.initialPartyName!;
-        } else {
+        final keepParty = (_candidateType == 'Political Party');
+        if (!keepParty) {
           _partyNameCtrl.clear();
+        } else if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) {
+          _partyNameCtrl.text = widget.initialPartyName!;
         }
         setState(() {
           _organization = null;
           _course = null;
           _position = null;
           _section = null;
-          _candidateType = widget.initialCandidateType ?? _candidateType;
-          _pickedImage = null;
-          _partyLogo = null;
+          // keep current candidate type; do not force reset
+          _candidateType = _candidateType;
+          _pickedImage = null; // clear candidate photo preview
+          if (!keepParty) {
+            _partyLogo = null; // clear party logo only for non-party submissions
+          }
         });
       }
     } catch (_) {
@@ -272,7 +299,7 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                               ),
                               const SizedBox(height: 6),
                               TextButton.icon(
-                                onPressed: _submitting ? null : _pickPartyLogo,
+                                onPressed: (_submitting || _pickingMedia) ? null : _pickPartyLogo,
                                 icon: const Icon(Icons.image_outlined),
                                 label: Text(_partyLogo == null ? 'Upload Party Logo (optional)' : 'Change Party Logo'),
                               ),
@@ -394,7 +421,7 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                     Align(
                       alignment: Alignment.centerLeft,
                       child: OutlinedButton.icon(
-                        onPressed: _submitting ? null : _pickImage,
+                        onPressed: (_submitting || _pickingMedia) ? null : _pickImage,
                         icon: const Icon(Icons.photo_library),
                         label: Text(_pickedImage == null ? 'Upload Candidate Photo (optional)' : 'Change Candidate Photo'),
                       ),

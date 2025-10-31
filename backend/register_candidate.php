@@ -40,23 +40,51 @@ if ($isMultipart) {
   $photo_blob   = null;
   $photo_mime   = null;
   if (!empty($_FILES['photo']) && is_uploaded_file($_FILES['photo']['tmp_name'])) {
-    $photo_blob = file_get_contents($_FILES['photo']['tmp_name']);
     $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
     if ($ext === 'png') $photo_mime = 'image/png';
     elseif ($ext === 'jpg' || $ext === 'jpeg') $photo_mime = 'image/jpeg';
     elseif ($ext === 'webp') $photo_mime = 'image/webp';
     else $photo_mime = 'application/octet-stream';
+    $maxBlobBytes = 900 * 1024; // ~900KB to stay well under typical max_allowed_packet
+    $size = (int)($_FILES['photo']['size'] ?? 0);
+    if ($size > 0 && $size <= $maxBlobBytes) {
+      $photo_blob = file_get_contents($_FILES['photo']['tmp_name']);
+    } else {
+      // Save to filesystem instead; let get_candidate_photo.php serve it later.
+      $baseDir = __DIR__ . '/uploads/candidates';
+      if (!is_dir($baseDir)) { @mkdir($baseDir, 0777, true); }
+      $baseName = $student_id !== '' ? $student_id : trim($first_name . ' ' . $middle_name . ' ' . $last_name);
+      $safe = strtolower(preg_replace('/[^a-zA-Z0-9_\-]+/', '_', trim($baseName)));
+      if ($safe === '') { $safe = 'candidate_' . time(); }
+      $target = $baseDir . '/' . $safe . '.' . ($ext ?: 'jpg');
+      @move_uploaded_file($_FILES['photo']['tmp_name'], $target);
+      // Keep photo_blob null to avoid DB large payload
+      $photo_blob = null;
+    }
   }
   // Optional party logo (multipart)
   $party_logo_blob = null;
   $party_logo_mime = null;
   if (!empty($_FILES['party_logo']) && is_uploaded_file($_FILES['party_logo']['tmp_name'])) {
-    $party_logo_blob = file_get_contents($_FILES['party_logo']['tmp_name']);
     $ext = strtolower(pathinfo($_FILES['party_logo']['name'], PATHINFO_EXTENSION));
     if ($ext === 'png') $party_logo_mime = 'image/png';
     elseif ($ext === 'jpg' || $ext === 'jpeg') $party_logo_mime = 'image/jpeg';
     elseif ($ext === 'webp') $party_logo_mime = 'image/webp';
     else $party_logo_mime = 'application/octet-stream';
+    $maxBlobBytes = 900 * 1024;
+    $size = (int)($_FILES['party_logo']['size'] ?? 0);
+    if ($size > 0 && $size <= $maxBlobBytes) {
+      $party_logo_blob = file_get_contents($_FILES['party_logo']['tmp_name']);
+    } else {
+      // Optionally save to filesystem (not currently read by get_party_logo.php)
+      $logosDir = __DIR__ . '/uploads/party_logos';
+      if (!is_dir($logosDir)) { @mkdir($logosDir, 0777, true); }
+      $pname = $party_name !== '' ? $party_name : 'party_' . time();
+      $safe = strtolower(preg_replace('/[^a-zA-Z0-9_\-]+/', '_', trim($pname)));
+      $target = $logosDir . '/' . $safe . '.' . ($ext ?: 'jpg');
+      @move_uploaded_file($_FILES['party_logo']['tmp_name'], $target);
+      $party_logo_blob = null; // avoid DB large payload
+    }
   }
 } else {
   $data = read_json_body();

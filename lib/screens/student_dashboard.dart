@@ -8,6 +8,7 @@ import 'package:societree_app/widgets/election_countdown.dart';
 import 'package:societree_app/widgets/omnibus_slideshow.dart';
 import 'package:societree_app/widgets/parties_candidates_grid.dart';
 import 'package:societree_app/widgets/things_to_know.dart';
+import 'package:societree_app/widgets/search_candidates.dart';
 
 class StudentDashboard extends StatefulWidget {
   final String orgName;
@@ -28,11 +29,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
   bool _loadingParties = false;
   // Omnibus slideshow handled via external widget now
   List<Map<String, dynamic>> _candidates = const [];
-  final TextEditingController _searchCtrl = TextEditingController();
-  Timer? _searchDebounce;
-  String _searchQuery = '';
-  bool _searching = false;
-  List<Map<String, dynamic>> _searchResults = const [];
 
   @override
   void initState() {
@@ -104,8 +100,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
   void dispose() {
     _ticker?.cancel();
     // Omnibus slideshow lifecycle handled in external widget
-    _searchDebounce?.cancel();
-    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -212,6 +206,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildElecomDashboard(ThemeData theme) {
+    final isElecom = widget.orgName.toUpperCase().contains('ELECOM');
     final days = _remaining.inDays;
     final hours = _remaining.inHours.remainder(24);
     final minutes = _remaining.inMinutes.remainder(60);
@@ -244,23 +239,26 @@ class _StudentDashboardState extends State<StudentDashboard> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _searchCtrl,
-              onChanged: (v) {
-                _searchDebounce?.cancel();
-                _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-                  _runSearch(v);
-                });
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).pushNamed(
+                  '/search',
+                  arguments: {'parties': _parties, 'candidates': _candidates, 'isElecom': isElecom},
+                );
               },
-              decoration: InputDecoration(
-                hintText: 'Search Party/candidates',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: const Color(0xFFF1EEF8),
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
+              child: AbsorbPointer(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search Party/candidates',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: const Color(0xFFF1EEF8),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -399,29 +397,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             const ThingsToKnowGrid(),
           ],
         ),
-        if (_searchQuery.isNotEmpty) ...[
-          // Floating results panel (no blur overlay)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 56,
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 0),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 6))],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: _buildSearchResults(theme),
-                ),
-              ),
-            ),
-          ),
-        ],
+        const SizedBox.shrink(),
       ],
     );
   }
@@ -531,220 +507,5 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
   }
 
-  void _runSearch(String q) {
-    final query = q.trim();
-    setState(() {
-      _searchQuery = query;
-      _searching = true;
-    });
-    if (query.length < 1) {
-      setState(() {
-        _searchResults = const [];
-        _searching = false;
-      });
-      return;
-    }
-    final ql = query.toLowerCase();
-    final partyResults = _parties.map((p) => {
-          'type': 'party',
-          'name': (p['name'] ?? '').toString(),
-          'logoUrl': p['logoUrl']
-        }).where((m) => (m['name'] as String).toLowerCase().contains(ql));
-    final candidateResults = _candidates.map((c) => {
-          'type': 'candidate',
-          'name': (c['name'] ?? '').toString().trim(),
-          'party': (c['party_name'] ?? c['party'] ?? '').toString().trim(),
-          'party_name': (c['party_name'] ?? '').toString().trim(),
-          'position': (c['position'] ?? '').toString(),
-          'organization': (c['organization'] ?? '').toString(),
-          'department': (c['program'] ?? c['department'] ?? '').toString(),
-          'year_section': (c['year_section'] ?? '').toString(),
-          'platform': (c['platform'] ?? '').toString(),
-          'candidate_type': (c['candidate_type'] ?? '').toString(),
-          'photoUrl': c['photoUrl']
-        }).where((m) {
-          final n = (m['name'] as String).toLowerCase();
-          final p = (m['party'] as String).toLowerCase();
-          return n.contains(ql) || p.contains(ql);
-        });
-    final results = [...partyResults, ...candidateResults];
-    setState(() {
-      _searchResults = results;
-      _searching = false;
-    });
-  }
-
-  Widget _buildSearchResults(ThemeData theme) {
-    if (_searching) {
-      return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()));
-    }
-    if (_searchResults.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: const Color(0xFFF1EEF8), borderRadius: BorderRadius.circular(12)),
-        child: Text('No results for "$_searchQuery"', style: theme.textTheme.bodyMedium),
-      );
-    }
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _searchResults.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, i) {
-        final m = _searchResults[i];
-        final type = (m['type'] ?? '').toString();
-        final isParty = type == 'party';
-        final title = (m['name'] ?? '').toString();
-        final subtitle = isParty ? 'Party' : [m['position'], m['party']].where((e) => (e ?? '').toString().isNotEmpty).join(' • ');
-        final imageUrl = isParty ? m['logoUrl'] as String? : m['photoUrl'] as String?;
-        return Container(
-          decoration: BoxDecoration(color: const Color(0xFFF1EEF8), borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.white,
-              child: ClipOval(
-                child: imageUrl != null
-                    ? Image.network(imageUrl, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)))
-                    : Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)),
-              ),
-            ),
-            title: Text(title, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-            subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-              child: Text(isParty ? 'Party' : 'Candidate', style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFF6E63F6), fontWeight: FontWeight.w700)),
-            ),
-            onTap: () async {
-              _searchDebounce?.cancel();
-              FocusScope.of(context).unfocus();
-              setState(() {
-                _searchCtrl.clear();
-                _searchQuery = '';
-                _searchResults = const [];
-              });
-              await _showSearchResultDetails(context, m);
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showSearchResultDetails(BuildContext context, Map<String, dynamic> m) async {
-    final theme = Theme.of(context);
-    final isParty = (m['type'] == 'party');
-    final title = (m['name'] ?? '').toString();
-    final subtitle = isParty
-        ? 'Party'
-        : [m['position'], m['organization']]
-            .map((e) => (e ?? '').toString().trim())
-            .where((e) => e.isNotEmpty)
-            .join(' • ');
-    final imageUrl = isParty ? m['logoUrl'] as String? : m['photoUrl'] as String?;
-    final partyName = (m['party'] ?? m['party_name'] ?? '').toString().trim();
-    final organization = (m['organization'] ?? '').toString();
-    final department = (m['department'] ?? '').toString();
-    final platform = (m['platform'] ?? '').toString();
-    await showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black26,
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (ctx, a1, a2) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-                top: false,
-                child: Material(
-                  color: Theme.of(ctx).scaffoldBackgroundColor,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
-                      top: 16,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 28,
-                              backgroundColor: const Color(0xFFF1EEF8),
-                              child: ClipOval(
-                                child: imageUrl != null
-                                    ? Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)))
-                                    : Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 4),
-                                  Text(subtitle, style: theme.textTheme.bodySmall),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        if (!isParty)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _detailLine(theme, 'Political party:', partyName.isNotEmpty ? partyName : 'Independent candidate (no political party)'),
-                              const SizedBox(height: 8),
-                              if (department.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                _detailLine(theme, 'Department:', department),
-                              ],
-                              if (platform.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                _detailLine(theme, 'Platform:', platform),
-                              ],
-                            ],
-                          )
-                        else
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: const Color(0xFFF7F5FF), borderRadius: BorderRadius.circular(12)),
-                            child: Text('Party: ${m['name']}', style: theme.textTheme.bodyMedium),
-                          ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-      transitionBuilder: (ctx, anim, secAnim, child) {
-        final offset = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut));
-        return SlideTransition(position: offset, child: FadeTransition(opacity: anim, child: child));
-      },
-    );
-  }
+  
 }
