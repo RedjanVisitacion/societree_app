@@ -147,15 +147,25 @@ class _StudentDashboardState extends State<StudentDashboard> {
         ],
       ),
 
-      body: Center(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, isElecom ? 0 : 12, 16, 16),
-              child: isElecom
-                  ? _buildElecomDashboard(theme)
-                  : Column(
+      body: isElecom
+          ? Center(
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: _buildElecomDashboard(theme),
+                  ),
+                ),
+              ),
+            )
+          : Center(
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         CircleAvatar(
@@ -165,7 +175,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
                             child: Image.asset(
                               widget.assetPath,
                               width: 90,
-                              // height: 90,
                               fit: BoxFit.contain,
                               errorBuilder: (c, e, s) => const Icon(Icons.school, size: 56, color: Colors.grey),
                             ),
@@ -181,28 +190,29 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         ),
                       ],
                     ),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        onTap: (i) {
-          // Placeholder handlers; wire up as needed
-          if (i != 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(['Home', 'Election', 'Poll History', 'Status'][i])),
-            );
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.how_to_vote_outlined), label: 'Election'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Poll History'),
-          BottomNavigationBarItem(icon: Icon(Icons.check), label: 'Status'),
-        ],
-      ),
+      bottomNavigationBar: isElecom
+          ? BottomNavigationBar(
+              currentIndex: 0,
+              onTap: (i) {
+                if (i != 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(['Home', 'Election', 'Poll History', 'Status'][i])),
+                  );
+                }
+              },
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+                BottomNavigationBarItem(icon: Icon(Icons.how_to_vote_outlined), label: 'Election'),
+                BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Poll History'),
+                BottomNavigationBarItem(icon: Icon(Icons.check), label: 'Status'),
+              ],
+            )
+          : null,
     );
   }
 
