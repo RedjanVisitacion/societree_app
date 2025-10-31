@@ -4,6 +4,10 @@ import 'dart:ui';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'login_screen.dart';
+import 'package:societree_app/widgets/election_countdown.dart';
+import 'package:societree_app/widgets/omnibus_slideshow.dart';
+import 'package:societree_app/widgets/parties_candidates_grid.dart';
+import 'package:societree_app/widgets/things_to_know.dart';
 
 class StudentDashboard extends StatefulWidget {
   final String orgName;
@@ -22,11 +26,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Duration _remaining = Duration.zero;
   List<Map<String, dynamic>> _parties = const [];
   bool _loadingParties = false;
-  final PageController _omniController = PageController(viewportFraction: 1.0);
-  Timer? _slideTimer;
-  List<String> _omnibusImages = const [];
-  int get _omniPageCount => (_omnibusImages.length + 1) ~/ 2; // 2 images per page
-  int _omniCurrentPage = 0;
+  // Omnibus slideshow handled via external widget now
+  List<Map<String, dynamic>> _candidates = const [];
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
+  String _searchQuery = '';
+  bool _searching = false;
+  List<Map<String, dynamic>> _searchResults = const [];
 
   @override
   void initState() {
@@ -36,7 +42,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _tick();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     _loadParties();
-    _loadOmnibusImages();
+    _loadCandidates();
   }
 
   void _tick() {
@@ -75,8 +81,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
   @override
   void dispose() {
     _ticker?.cancel();
-    _slideTimer?.cancel();
-    _omniController.dispose();
+    // Omnibus slideshow lifecycle handled in external widget
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -210,235 +217,189 @@ class _StudentDashboardState extends State<StudentDashboard> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        TextField(
-          decoration: InputDecoration(
-            hintText: 'Search Party/candidates',
-            prefixIcon: const Icon(Icons.search),
-            filled: true,
-            fillColor: const Color(0xFFF1EEF8),
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(24),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text('Election Countdown', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF7B6CF6), Color(0xFFB07CF3), Color(0xFFE7B56A)],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 8)),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      'assets/images/ELECOM.png',
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.contain,
-                      errorBuilder: (c, e, s) => const Icon(Icons.how_to_vote, color: Colors.white),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('USTP-OROQUIETA Election', style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 2),
-                        Text(
-                          'General Election to legislative assembly',
-                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  timePill(days.toString().padLeft(2, '0'), 'days'),
-                  const SizedBox(width: 8),
-                  timePill(hours.toString().padLeft(2, '0'), 'hours'),
-                  const SizedBox(width: 8),
-                  timePill(minutes.toString().padLeft(2, '0'), 'mins'),
-                  const SizedBox(width: 8),
-                  timePill(seconds.toString().padLeft(2, '0'), 'sec'),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                days > 0 ? 'You have $days days left to vote. Don\'t miss your chance!' : 'Voting closes soon!',
-                style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFFFFE4E4)),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.center,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6E63F6),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    elevation: 0,
-                  ),
-                  onPressed: _voted
-                      ? null
-                      : () async {
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            barrierDismissible: true,
-                            builder: (ctx) {
-                              return BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                                child: AlertDialog(
-                                  title: const Text('Confirm Vote'),
-                                  content: Text(_selectedCandidate == null
-                                      ? 'Proceed to vote?'
-                                      : 'Cast your vote for "${_selectedCandidate!}"?'),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-                                    ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Confirm')),
-                                  ],
-                                ),
-                              );
-                            },
-                          );
-                          if (ok == true && mounted) {
-                            setState(() => _voted = true);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vote submitted')));
-                          }
-                        },
-                  child: const Text('Vote Now'),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _searchCtrl,
+              onChanged: (v) {
+                _searchDebounce?.cancel();
+                _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+                  _runSearch(v);
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search Party/candidates',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: const Color(0xFFF1EEF8),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
                 ),
               ),
-            ],
-          ),
-        ),
-        if (_omnibusImages.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _buildOmnibusSlideshow(theme),
-        ],
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Parties & Candidates', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-            TextButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.chevron_right, size: 18),
-              label: const Text('See All'),
-              style: TextButton.styleFrom(padding: EdgeInsets.zero),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (_loadingParties) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())) else
-        GridView.count(
-          crossAxisCount: 3,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 0.9,
-          children: (_parties.isEmpty ? List<Map<String, dynamic>>.generate(6, (i) => {'name': 'Party ${i+1}', 'logoUrl': null}) : _parties)
-              .map((p) {
-            final logoUrl = p['logoUrl'] as String?;
-            final name = (p['name'] ?? '').toString();
-            return Container(
+            const SizedBox(height: 24),
+            Text('Election Countdown', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1EEF8),
-                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF7B6CF6), Color(0xFFB07CF3), Color(0xFFE7B56A)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 8)),
+                ],
               ),
-              padding: const EdgeInsets.all(12),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.white,
-                    child: ClipOval(
-                      child: logoUrl != null
-                          ? Image.network(
-                              logoUrl,
-                              width: 56,
-                              height: 56,
-                              fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) => const Icon(Icons.flag, color: Color(0xFF6E63F6)),
-                            )
-                          : const Icon(Icons.flag, color: Color(0xFF6E63F6)),
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/images/ELECOM.png',
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.contain,
+                          errorBuilder: (c, e, s) => const Icon(Icons.how_to_vote, color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('USTP-OROQUIETA Election', style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 2),
+                            Text(
+                              'General Election to legislative assembly',
+                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Flexible(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-                      textAlign: TextAlign.center,
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      timePill(days.toString().padLeft(2, '0'), 'days'),
+                      const SizedBox(width: 8),
+                      timePill(hours.toString().padLeft(2, '0'), 'hours'),
+                      const SizedBox(width: 8),
+                      timePill(minutes.toString().padLeft(2, '0'), 'mins'),
+                      const SizedBox(width: 8),
+                      timePill(seconds.toString().padLeft(2, '0'), 'sec'),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    days > 0 ? 'You have $days days left to vote. Don\'t miss your chance!' : 'Voting closes soon!',
+                    style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFFFFE4E4)),
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.center,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6E63F6),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        elevation: 0,
+                      ),
+                      onPressed: _voted
+                          ? null
+                          : () async {
+                              final ok = await showDialog<bool>(
+                                context: context,
+                                barrierDismissible: true,
+                                builder: (ctx) {
+                                  return BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                                    child: AlertDialog(
+                                      title: const Text('Confirm Vote'),
+                                      content: Text(_selectedCandidate == null
+                                          ? 'Proceed to vote?'
+                                          : 'Cast your vote for "${_selectedCandidate!}"?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+                                        ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Confirm')),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                              if (ok == true && mounted) {
+                                setState(() => _voted = true);
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vote submitted')));
+                              }
+                            },
+                      child: const Text('Vote Now'),
                     ),
                   ),
                 ],
               ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 24),
-        Text('Things to know', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 3,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 0.85,
-          children: [
-            _infoCard(
-              context,
-              title: 'Top Manifesto\nHighlights',
-              colors: const [Color(0xFFD2B0F6), Color(0xFF9BB4F7)],
-              icon: Icons.article_outlined,
             ),
-            _infoCard(
-              context,
-              title: 'FAQs & Voter\nEducation',
-              colors: const [Color(0xFFE6B1C0), Color(0xFFD5A7F7)],
-              icon: Icons.help_outline,
+            const SizedBox(height: 16),
+            const OmnibusSlideshow(),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Parties & Candidates', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.chevron_right, size: 18),
+                  label: const Text('See All'),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                ),
+              ],
             ),
-            _infoCard(
-              context,
-              title: 'Find near by\npolling station',
-              colors: const [Color(0xFFA6B6F8), Color(0xFFB7A6F9)],
-              icon: Icons.location_on_outlined,
-            ),
+            const SizedBox(height: 8),
+            PartiesCandidatesGrid(parties: _parties, loading: _loadingParties),
+            const SizedBox(height: 24),
+            Text('Things to know', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            const ThingsToKnowGrid(),
           ],
         ),
+        if (_searchQuery.isNotEmpty) ...[
+          // Floating results panel (no blur overlay)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 56,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 6))],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: _buildSearchResults(theme),
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -469,170 +430,226 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  Future<void> _loadOmnibusImages() async {
+  Future<void> _loadCandidates() async {
     try {
-      final manifestContent = await DefaultAssetBundle.of(context).loadString('AssetManifest.json');
-      final Map<String, dynamic> manifestMap = jsonDecode(manifestContent) as Map<String, dynamic>;
-      final images = manifestMap.keys
-          .where((k) => k.startsWith('assets/images/omnibus/'))
-          .where((k) => k.toLowerCase().endsWith('.png') || k.toLowerCase().endsWith('.jpg') || k.toLowerCase().endsWith('.jpeg') || k.toLowerCase().endsWith('.webp'))
-          .toList()
-        ..sort();
-      if (mounted) {
-        setState(() => _omnibusImages = images);
-        _startSlideshowTimer();
+      final baseUrl = const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api');
+      final uri = Uri.parse('$baseUrl/get_candidates.php');
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return;
+      final decoded = jsonDecode(res.body);
+      List<dynamic> raw;
+      if (decoded is List) {
+        raw = decoded;
+      } else if (decoded is Map<String, dynamic>) {
+        raw = (decoded['candidates'] ?? decoded['data'] ?? decoded['items'] ?? []) as List<dynamic>;
+      } else {
+        raw = const [];
       }
+      String _mkName(Map<String, dynamic> e) {
+        final a = (e['name'] ?? e['candidate_name'] ?? e['fullname'] ?? '').toString();
+        if (a.isNotEmpty) return a;
+        final f = (e['first_name'] ?? e['firstname'] ?? e['given_name'] ?? '').toString();
+        final m = (e['middle_name'] ?? e['middlename'] ?? e['mname'] ?? '').toString();
+        final l = (e['last_name'] ?? e['lastname'] ?? e['surname'] ?? '').toString();
+        return [f, m, l].where((s) => s.isNotEmpty).join(' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+      }
+      String _mkParty(Map<String, dynamic> e) {
+        // In your DB, organization corresponds to party
+        return (e['organization'] ?? e['party'] ?? e['party_name'] ?? e['partylist'] ?? e['party_list'] ?? '').toString();
+      }
+      String _mkPosition(Map<String, dynamic> e) {
+        return (e['position'] ?? e['role'] ?? e['seat'] ?? '').toString();
+      }
+      String? _mkPhoto(Map<String, dynamic> e) {
+        final direct = (e['photo'] ?? e['image'] ?? e['profile'] ?? e['avatar'] ?? e['img_url'] ?? e['url']);
+        final name = _mkName(e);
+        if (direct is String && direct.isNotEmpty) {
+          if (direct.startsWith('http')) return direct;
+          return '$baseUrl/$direct'.replaceAll('//', '/').replaceFirst('http:/', 'http://').replaceFirst('https:/', 'https://');
+        }
+        final sid = (e['student_id'] ?? e['studentId'] ?? '').toString();
+        if (name.isNotEmpty) {
+          return '$baseUrl/get_candidate_photo.php?name=' + Uri.encodeComponent(name);
+        }
+        if (sid.isNotEmpty) {
+          return '$baseUrl/get_candidate_photo.php?student_id=' + Uri.encodeComponent(sid);
+        }
+        return null;
+      }
+      final items = raw.whereType<Map>()
+          .map<Map<String, dynamic>>((e) => e.cast<String, dynamic>())
+          .map((e) {
+        final name = _mkName(e);
+        final party = _mkParty(e);
+        final position = _mkPosition(e);
+        final photoUrl = _mkPhoto(e);
+        final program = (e['program'] ?? '').toString();
+        final yearSection = (e['year_section'] ?? e['year'] ?? '').toString();
+        return {'name': name, 'party': party, 'position': position, 'program': program, 'year_section': yearSection, 'photoUrl': photoUrl};
+      }).where((m) => (m['name'] as String).isNotEmpty).toList();
+      if (mounted) setState(() => _candidates = items);
     } catch (_) {
-      if (mounted) setState(() => _omnibusImages = const []);
+      if (mounted) setState(() => _candidates = const []);
     }
   }
 
-  void _startSlideshowTimer() {
-    _slideTimer?.cancel();
-    if (_omniPageCount == 0) return;
-    _slideTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || _omniPageCount == 0 || !_omniController.hasClients) return;
-      final target = (_omniCurrentPage + 1) % _omniPageCount;
-      _omniController.animateToPage(
-        target,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeInOut,
-      );
+  void _runSearch(String q) {
+    final query = q.trim();
+    setState(() {
+      _searchQuery = query;
+      _searching = true;
+    });
+    if (query.length < 1) {
+      setState(() {
+        _searchResults = const [];
+        _searching = false;
+      });
+      return;
+    }
+    final ql = query.toLowerCase();
+    final partyResults = _parties.map((p) => {
+          'type': 'party',
+          'name': (p['name'] ?? '').toString(),
+          'logoUrl': p['logoUrl']
+        }).where((m) => (m['name'] as String).toLowerCase().contains(ql));
+    final candidateResults = _candidates.map((c) => {
+          'type': 'candidate',
+          'name': (c['name'] ?? '').toString(),
+          'party': (c['party'] ?? '').toString(),
+          'position': (c['position'] ?? '').toString(),
+          'photoUrl': c['photoUrl']
+        }).where((m) {
+          final n = (m['name'] as String).toLowerCase();
+          final p = (m['party'] as String).toLowerCase();
+          return n.contains(ql) || p.contains(ql);
+        });
+    final results = [...partyResults, ...candidateResults];
+    setState(() {
+      _searchResults = results;
+      _searching = false;
     });
   }
 
-  Widget _buildOmnibusSlideshow(ThemeData theme) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: SizedBox(
-        height: 140,
-        child: GestureDetector(
-          onTap: () {
-            final startImageIndex = (_omniCurrentPage * 2).clamp(0, _omnibusImages.isEmpty ? 0 : _omnibusImages.length - 1);
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => _OmnibusReaderScreen(
-                  images: _omnibusImages,
-                  initialIndex: startImageIndex,
+  Widget _buildSearchResults(ThemeData theme) {
+    if (_searching) {
+      return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()));
+    }
+    if (_searchResults.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: const Color(0xFFF1EEF8), borderRadius: BorderRadius.circular(12)),
+        child: Text('No results for "$_searchQuery"', style: theme.textTheme.bodyMedium),
+      );
+    }
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _searchResults.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, i) {
+        final m = _searchResults[i];
+        final type = (m['type'] ?? '').toString();
+        final isParty = type == 'party';
+        final title = (m['name'] ?? '').toString();
+        final subtitle = isParty ? 'Party' : [m['position'], m['party']].where((e) => (e ?? '').toString().isNotEmpty).join(' • ');
+        final imageUrl = isParty ? m['logoUrl'] as String? : m['photoUrl'] as String?;
+        return Container(
+          decoration: BoxDecoration(color: const Color(0xFFF1EEF8), borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: ClipOval(
+                child: imageUrl != null
+                    ? Image.network(imageUrl, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)))
+                    : Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)),
+              ),
+            ),
+            title: Text(title, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+            subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+              child: Text(isParty ? 'Party' : 'Candidate', style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFF6E63F6), fontWeight: FontWeight.w700)),
+            ),
+            onTap: () => _showSearchResultDetails(context, m),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showSearchResultDetails(BuildContext context, Map<String, dynamic> m) async {
+    final theme = Theme.of(context);
+    final isParty = (m['type'] == 'party');
+    final title = (m['name'] ?? '').toString();
+    final subtitle = isParty
+        ? 'Party'
+        : [m['position'], m['party']].where((e) => (e ?? '').toString().isNotEmpty).join(' • ');
+    final imageUrl = isParty ? m['logoUrl'] as String? : m['photoUrl'] as String?;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+            top: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: const Color(0xFFF1EEF8),
+                    child: ClipOval(
+                      child: imageUrl != null
+                          ? Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)))
+                          : Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 4),
+                        Text(subtitle, style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (!isParty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFFF7F5FF), borderRadius: BorderRadius.circular(12)),
+                  child: Text('Candidate info: ${m['name']}\nParty: ${m['party']}\nPosition: ${m['position']}', style: theme.textTheme.bodyMedium),
+                )
+              else
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFFF7F5FF), borderRadius: BorderRadius.circular(12)),
+                  child: Text('Party: ${m['name']}', style: theme.textTheme.bodyMedium),
                 ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
               ),
-            );
-          },
-          child: Stack(
-          children: [
-            PageView.builder(
-              controller: _omniController,
-              itemCount: _omniPageCount,
-              onPageChanged: (i) {
-                if (mounted) setState(() => _omniCurrentPage = i);
-              },
-              itemBuilder: (context, index) {
-                final start = index * 2;
-                final slice = _omnibusImages.skip(start).take(2).toList();
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: List.generate(2, (i) => i)
-                      .map((i) {
-                        final hasImage = i < slice.length;
-                        return Expanded(
-                          child: Container(
-                            // No margins or background so images are seamlessly merged horizontally
-                            margin: EdgeInsets.zero,
-                            color: Colors.transparent,
-                            child: hasImage
-                                ? Image.asset(
-                                    slice[i],
-                                    fit: BoxFit.contain,
-                                    alignment: Alignment.center,
-                                    errorBuilder: (c, e, s) => const Center(child: Icon(Icons.image_not_supported)),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                        );
-                      })
-                      .toList(),
-                );
-              },
-            ),
-            Positioned(
-              bottom: 8,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_omniPageCount, (i) => i)
-                    .map((i) {
-                      final isActive = (_omniCurrentPage == i);
-                      return Container(
-                        width: isActive ? 12 : 8,
-                        height: 8,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(
-                          color: isActive ? const Color(0xFF6E63F6) : Colors.white70,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      );
-                    })
-                    .toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-}
-
-class _OmnibusReaderScreen extends StatefulWidget {
-  final List<String> images;
-  final int initialIndex;
-  const _OmnibusReaderScreen({Key? key, required this.images, required this.initialIndex}) : super(key: key);
-  @override
-  State<_OmnibusReaderScreen> createState() => _OmnibusReaderScreenState();
-}
-
-class _OmnibusReaderScreenState extends State<_OmnibusReaderScreen> {
-  late final PageController _controller;
-  @override
-  void initState() {
-    super.initState();
-    _controller = PageController(initialPage: widget.initialIndex);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Omnibus'),
-      ),
-      body: PageView.builder(
-        controller: _controller,
-        itemCount: widget.images.length,
-        itemBuilder: (context, index) {
-          final path = widget.images[index];
-          return Center(
-            child: InteractiveViewer(
-              minScale: 0.8,
-              maxScale: 4.0,
-              child: Image.asset(
-                path,
-                fit: BoxFit.contain,
-                errorBuilder: (c, e, s) => const Icon(Icons.image_not_supported, color: Colors.white),
-              ),
-            ),
-          );
-        },
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
