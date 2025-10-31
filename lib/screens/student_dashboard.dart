@@ -384,13 +384,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Parties & Candidates', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-                if (!_showAllParties && _parties.length > 3)
+                if (_parties.length > 3)
                   TextButton.icon(
                     onPressed: () {
-                      setState(() => _showAllParties = true);
+                      setState(() => _showAllParties = !_showAllParties);
                     },
-                    icon: const Icon(Icons.chevron_right, size: 18),
-                    label: const Text('See All'),
+                    icon: Icon(_showAllParties ? Icons.keyboard_arrow_down : Icons.chevron_right, size: 18),
+                    label: Text(_showAllParties ? 'See Less' : 'See All'),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
                   ),
               ],
