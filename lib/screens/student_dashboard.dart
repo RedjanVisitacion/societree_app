@@ -3,12 +3,10 @@ import 'dart:async';
 import 'dart:ui';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:societree_app/screens/orgs/elecom/omnibus_slideshow.dart';
+import 'package:societree_app/screens/orgs/elecom/parties_candidates_grid.dart';
+import 'package:societree_app/screens/orgs/elecom/things_to_know.dart';
 import 'login_screen.dart';
-import 'package:societree_app/widgets/election_countdown.dart';
-import 'package:societree_app/widgets/omnibus_slideshow.dart';
-import 'package:societree_app/widgets/parties_candidates_grid.dart';
-import 'package:societree_app/widgets/things_to_know.dart';
-import 'package:societree_app/widgets/search_candidates.dart';
 
 class StudentDashboard extends StatefulWidget {
   final String orgName;

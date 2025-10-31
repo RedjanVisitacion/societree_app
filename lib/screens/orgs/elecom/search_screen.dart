@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:societree_app/widgets/search_candidates.dart';
+import 'package:societree_app/screens/orgs/elecom/search_candidates.dart';
 
 class SearchScreen extends StatelessWidget {
   final List<Map<String, dynamic>> parties;
