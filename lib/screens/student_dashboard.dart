@@ -29,6 +29,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   bool _loadingParties = false;
   // Omnibus slideshow handled via external widget now
   List<Map<String, dynamic>> _candidates = const [];
+  bool _showAllParties = false;
 
   @override
   void initState() {
@@ -375,22 +376,27 @@ class _StudentDashboardState extends State<StudentDashboard> {
               ),
             ),
             const SizedBox(height: 16),
+            Text('Omnibus Code', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
             const OmnibusSlideshow(),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Parties & Candidates', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.chevron_right, size: 18),
-                  label: const Text('See All'),
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                ),
+                if (!_showAllParties && _parties.length > 3)
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() => _showAllParties = true);
+                    },
+                    icon: const Icon(Icons.chevron_right, size: 18),
+                    label: const Text('See All'),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  ),
               ],
             ),
             const SizedBox(height: 8),
-            PartiesCandidatesGrid(parties: _parties, loading: _loadingParties),
+            PartiesCandidatesGrid(parties: _showAllParties ? _parties : (_parties.length > 3 ? _parties.take(3).toList() : _parties), loading: _loadingParties),
             const SizedBox(height: 24),
             Text('Things to know', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
