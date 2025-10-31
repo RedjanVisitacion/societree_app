@@ -2,8 +2,8 @@
 require_once __DIR__ . '/config.php';
 $mysqli = db_connect();
 
-// Fetch candidates from candidates_registration table
-$sql = "SELECT id, student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, created_at FROM candidates_registration ORDER BY created_at DESC, id DESC";
+// Fetch candidates from candidates_registration table (include party fields)
+$sql = "SELECT id, student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, candidate_type, party_name, created_at FROM candidates_registration ORDER BY created_at DESC, id DESC";
 
 $res = $mysqli->query($sql);
 if (!$res) {
@@ -25,6 +25,8 @@ while ($row = $res->fetch_assoc()) {
     'program' => $row['program'],
     'year_section' => $row['year_section'],
     'platform' => $row['platform'],
+    'candidate_type' => $row['candidate_type'],
+    'party_name' => $row['party_name'],
     'has_photo' => false,
     'created_at' => $row['created_at'],
   ];

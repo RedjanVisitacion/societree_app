@@ -45,6 +45,28 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _loadCandidates();
   }
 
+  Widget _detailLine(ThemeData theme, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 160,
+          child: Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: theme.textTheme.bodyMedium,
+            softWrap: true,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _tick() {
     final now = DateTime.now();
     setState(() {
@@ -483,9 +505,25 @@ class _StudentDashboardState extends State<StudentDashboard> {
         final party = _mkParty(e);
         final position = _mkPosition(e);
         final photoUrl = _mkPhoto(e);
-        final program = (e['program'] ?? '').toString();
+        final program = (e['program'] ?? e['department'] ?? '').toString();
         final yearSection = (e['year_section'] ?? e['year'] ?? '').toString();
-        return {'name': name, 'party': party, 'position': position, 'program': program, 'year_section': yearSection, 'photoUrl': photoUrl};
+        final organization = (e['organization'] ?? '').toString();
+        final partyName = (e['party_name'] ?? '').toString();
+        final candidateType = (e['candidate_type'] ?? '').toString();
+        final platform = (e['platform'] ?? '').toString();
+        return {
+          'name': name.trim(),
+          // Political party is strictly the party_name column when present
+          'party': (partyName.isNotEmpty ? partyName : party).toString().trim(),
+          'party_name': partyName,
+          'organization': organization.toString().trim(),
+          'candidate_type': candidateType,
+          'position': position.toString().trim(),
+          'program': program.toString().trim(),
+          'year_section': yearSection.toString().trim(),
+          'platform': platform.toString().trim(),
+          'photoUrl': photoUrl
+        };
       }).where((m) => (m['name'] as String).isNotEmpty).toList();
       if (mounted) setState(() => _candidates = items);
     } catch (_) {
@@ -514,9 +552,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
         }).where((m) => (m['name'] as String).toLowerCase().contains(ql));
     final candidateResults = _candidates.map((c) => {
           'type': 'candidate',
-          'name': (c['name'] ?? '').toString(),
-          'party': (c['party'] ?? '').toString(),
+          'name': (c['name'] ?? '').toString().trim(),
+          'party': (c['party_name'] ?? c['party'] ?? '').toString().trim(),
+          'party_name': (c['party_name'] ?? '').toString().trim(),
           'position': (c['position'] ?? '').toString(),
+          'organization': (c['organization'] ?? '').toString(),
+          'department': (c['program'] ?? c['department'] ?? '').toString(),
+          'year_section': (c['year_section'] ?? '').toString(),
+          'platform': (c['platform'] ?? '').toString(),
+          'candidate_type': (c['candidate_type'] ?? '').toString(),
           'photoUrl': c['photoUrl']
         }).where((m) {
           final n = (m['name'] as String).toLowerCase();
@@ -571,7 +615,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
               child: Text(isParty ? 'Party' : 'Candidate', style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFF6E63F6), fontWeight: FontWeight.w700)),
             ),
-            onTap: () => _showSearchResultDetails(context, m),
+            onTap: () async {
+              _searchDebounce?.cancel();
+              FocusScope.of(context).unfocus();
+              setState(() {
+                _searchCtrl.clear();
+                _searchQuery = '';
+                _searchResults = const [];
+              });
+              await _showSearchResultDetails(context, m);
+            },
           ),
         );
       },
@@ -584,18 +637,25 @@ class _StudentDashboardState extends State<StudentDashboard> {
     final title = (m['name'] ?? '').toString();
     final subtitle = isParty
         ? 'Party'
-        : [m['position'], m['party']].where((e) => (e ?? '').toString().isNotEmpty).join(' • ');
+        : [m['position'], m['organization']]
+            .map((e) => (e ?? '').toString().trim())
+            .where((e) => e.isNotEmpty)
+            .join(' • ');
     final imageUrl = isParty ? m['logoUrl'] as String? : m['photoUrl'] as String?;
+    final partyName = (m['party'] ?? m['party_name'] ?? '').toString().trim();
+    final organization = (m['organization'] ?? '').toString();
+    final department = (m['department'] ?? '').toString();
+    final platform = (m['platform'] ?? '').toString();
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) {
+      builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(
             left: 16,
             right: 16,
-            bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+            bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
             top: 16,
           ),
           child: Column(
@@ -628,11 +688,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
               ),
               const SizedBox(height: 16),
               if (!isParty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFF7F5FF), borderRadius: BorderRadius.circular(12)),
-                  child: Text('Candidate info: ${m['name']}\nParty: ${m['party']}\nPosition: ${m['position']}', style: theme.textTheme.bodyMedium),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _detailLine(theme, 'Political party:', partyName.isNotEmpty ? partyName : 'Independent candidate (no political party)'),
+                    const SizedBox(height: 8),
+                    // Position and Organization are already shown below the name as subtitle
+                    if (department.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _detailLine(theme, 'Department:', department),
+                    ],
+                    if (platform.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _detailLine(theme, 'Platform:', platform),
+                    ],
+                  ],
                 )
               else
                 Container(
