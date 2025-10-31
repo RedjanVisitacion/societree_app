@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:societree_app/screens/orgs/elecom/omnibus_slideshow.dart';
 import 'package:societree_app/screens/orgs/elecom/parties_candidates_grid.dart';
 import 'package:societree_app/screens/orgs/elecom/things_to_know.dart';
+import 'package:societree_app/screens/societree/societree_dashboard.dart';
 import 'login_screen.dart';
 
 class StudentDashboard extends StatefulWidget {
@@ -112,39 +113,48 @@ class _StudentDashboardState extends State<StudentDashboard> {
     final isElecom = widget.orgName.toUpperCase().contains('ELECOM');
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !isElecom,
         title: Text(widget.orgName),
         actions: [
           IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.help_outline)),
-          IconButton(
-            tooltip: 'Logout',
-            onPressed: () async {
-              final ok = await showDialog<bool>(
-                context: context,
-                barrierDismissible: true,
-                builder: (ctx) {
-                  return BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                    child: AlertDialog(
-                      title: const Text('Logout'),
-                      content: const Text('Are you sure you want to logout?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-                        ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Logout')),
-                      ],
-                    ),
-                  );
-                },
-              );
-              if (ok == true) {
+          IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined)),
+          PopupMenuButton<String>(
+            tooltip: 'Logout options',
+            icon: const Icon(Icons.logout),
+            onSelected: (value) async {
+              if (value == 'home') {
                 if (!mounted) return;
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
+                Navigator.push(context, MaterialPageRoute(builder: (context) => SocieTreeDashboard()));
+              } else if (value == 'logout') {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (ctx) {
+                    return BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                      child: AlertDialog(
+                        title: const Text('Logout'),
+                        content: const Text('Are you sure you want to logout?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+                          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Logout')),
+                        ],
+                      ),
+                    );
+                  },
                 );
+                if (confirm == true && mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
               }
             },
-            icon: const Icon(Icons.logout),
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(value: 'home', child: Text('Societree')),
+              const PopupMenuItem(value: 'logout', child: Text('Logout')),
+            ],
           ),
         ],
       ),
