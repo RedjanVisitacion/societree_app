@@ -646,79 +646,104 @@ class _StudentDashboardState extends State<StudentDashboard> {
     final organization = (m['organization'] ?? '').toString();
     final department = (m['department'] ?? '').toString();
     final platform = (m['platform'] ?? '').toString();
-    await showModalBottomSheet(
+    await showGeneralDialog(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
-            top: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: const Color(0xFFF1EEF8),
-                    child: ClipOval(
-                      child: imageUrl != null
-                          ? Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)))
-                          : Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)),
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black26,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (ctx, a1, a2) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+                top: false,
+                child: Material(
+                  color: Theme.of(ctx).scaffoldBackgroundColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
+                      top: 16,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 4),
-                        Text(subtitle, style: theme.textTheme.bodySmall),
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: const Color(0xFFF1EEF8),
+                              child: ClipOval(
+                                child: imageUrl != null
+                                    ? Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)))
+                                    : Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 4),
+                                  Text(subtitle, style: theme.textTheme.bodySmall),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        if (!isParty)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _detailLine(theme, 'Political party:', partyName.isNotEmpty ? partyName : 'Independent candidate (no political party)'),
+                              const SizedBox(height: 8),
+                              if (department.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                _detailLine(theme, 'Department:', department),
+                              ],
+                              if (platform.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                _detailLine(theme, 'Platform:', platform),
+                              ],
+                            ],
+                          )
+                        else
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: const Color(0xFFF7F5FF), borderRadius: BorderRadius.circular(12)),
+                            child: Text('Party: ${m['name']}', style: theme.textTheme.bodyMedium),
+                          ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
+                        ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (!isParty)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _detailLine(theme, 'Political party:', partyName.isNotEmpty ? partyName : 'Independent candidate (no political party)'),
-                    const SizedBox(height: 8),
-                    // Position and Organization are already shown below the name as subtitle
-                    if (department.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _detailLine(theme, 'Department:', department),
-                    ],
-                    if (platform.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _detailLine(theme, 'Platform:', platform),
-                    ],
-                  ],
-                )
-              else
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFF7F5FF), borderRadius: BorderRadius.circular(12)),
-                  child: Text('Party: ${m['name']}', style: theme.textTheme.bodyMedium),
                 ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
               ),
-            ],
-          ),
+            ),
+          ],
         );
+      },
+      transitionBuilder: (ctx, anim, secAnim, child) {
+        final offset = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut));
+        return SlideTransition(position: offset, child: FadeTransition(opacity: anim, child: child));
       },
     );
   }
