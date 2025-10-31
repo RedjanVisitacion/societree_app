@@ -223,8 +223,8 @@ class _SearchCandidatesState extends State<SearchCandidates> {
       );
     }
     return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 8),
       itemCount: _searchResults.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
@@ -295,23 +295,27 @@ class _SearchCandidatesState extends State<SearchCandidates> {
             ),
           ),
         ),
-        if (_searchQuery.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Material(
-            color: Colors.transparent,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 6))],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: _buildSearchResults(theme),
-              ),
-            ),
-          ),
-        ],
+        const SizedBox(height: 8),
+        Expanded(
+          child: _searchQuery.isEmpty
+              ? const SizedBox.shrink()
+              : Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 6)),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: _buildSearchResults(theme),
+                    ),
+                  ),
+                ),
+        ),
       ],
     );
   }
