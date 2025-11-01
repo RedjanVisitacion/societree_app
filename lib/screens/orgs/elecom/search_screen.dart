@@ -11,6 +11,7 @@ class SearchScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -41,6 +42,13 @@ class SearchScreen extends StatelessWidget {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Back',
+            icon: const Icon(Icons.home_outlined),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
       ),
       body: Align(
         alignment: Alignment.topCenter,
