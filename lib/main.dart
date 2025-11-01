@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:societree_app/screens/orgs/elecom/search_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/societree/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -27,7 +28,7 @@ class MyApp extends StatelessWidget {
           return SearchScreen(parties: parties, candidates: candidates);
         },
       },
-      home: const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }
