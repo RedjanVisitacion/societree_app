@@ -116,7 +116,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         automaticallyImplyLeading: !isElecom,
         title: Text(widget.orgName),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.help_outline)),
           IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined)),
           PopupMenuButton<String>(
             tooltip: 'Logout options',
