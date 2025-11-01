@@ -12,6 +12,7 @@ import 'package:societree_app/screens/orgs/elecom/parties_candidates_grid.dart';
 import 'package:societree_app/screens/orgs/elecom/things_to_know.dart';
 import 'package:societree_app/screens/societree/societree_dashboard.dart';
 import 'login_screen.dart';
+import 'package:societree_app/config/api_config.dart';
 
 class StudentDashboard extends StatefulWidget {
   final String orgName;
@@ -78,7 +79,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Future<void> _loadParties() async {
     setState(() => _loadingParties = true);
     try {
-      final baseUrl = const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api');
+      final baseUrl = apiBaseUrl;
       final uri = Uri.parse('$baseUrl/get_parties.php');
       final res = await http.get(uri).timeout(const Duration(seconds: 10));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -500,7 +501,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   Future<void> _loadCandidates() async {
     try {
-      final baseUrl = const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api');
+      final baseUrl = apiBaseUrl;
       final uri = Uri.parse('$baseUrl/get_candidates.php');
       final res = await http.get(uri).timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) return;

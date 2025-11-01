@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import 'candidate_registration_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:societree_app/config/api_config.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -169,7 +170,7 @@ class AdminHomeScreen extends StatelessWidget {
                                     final selLogoPath = partyLogo?.path;
                                     Navigator.of(ctx).pop();
                                     final api = ApiService(
-                                      baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api'),
+                                      baseUrl: apiBaseUrl,
                                     );
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
@@ -289,7 +290,7 @@ class AdminHomeScreen extends StatelessWidget {
                                                         }
                                                         Navigator.of(ctx2).pop();
                                                         final api = ApiService(
-                                                          baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api'),
+                                                          baseUrl: apiBaseUrl,
                                                         );
                                                         Navigator.of(context).push(
                                                           MaterialPageRoute(

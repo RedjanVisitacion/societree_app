@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:societree_app/screens/societree/societree_dashboard.dart';
 import '../services/api_service.dart';
 import 'admin_home_screen.dart';
+import 'package:societree_app/config/api_config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,7 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _api = ApiService(baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://192.168.137.1/societree_api'));
+    _api = ApiService(baseUrl: apiBaseUrl);
   }
 
   @override
