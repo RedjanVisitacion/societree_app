@@ -96,117 +96,274 @@ class _SearchCandidatesState extends State<SearchCandidates> {
   }
 
   Future<void> _showSearchResultDetails(BuildContext context, Map<String, dynamic> m) async {
-    final theme = Theme.of(context);
     final isParty = (m['type'] == 'party');
-    final title = (m['name'] ?? '').toString();
-    final subtitle = isParty
-        ? 'Party'
-        : [m['position'], m['organization']]
-            .map((e) => (e ?? '').toString().trim())
-            .where((e) => e.isNotEmpty)
-            .join(' • ');
-    final imageUrl = isParty ? m['logoUrl'] as String? : m['photoUrl'] as String?;
-    final partyName = (m['party'] ?? m['party_name'] ?? '').toString().trim();
-    final department = (m['department'] ?? '').toString();
-    final platform = (m['platform'] ?? '').toString();
-    await showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black26,
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (ctx, a1, a2) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                child: Container(color: Colors.transparent),
+    if (isParty) {
+      _showPartyDetails(context, m['name']?.toString() ?? '', m['logoUrl'] as String?);
+    } else {
+      // Normalize candidate fields to match dashboard details display
+      final candidate = {
+        'name': (m['name'] ?? '').toString(),
+        'organization': (m['organization'] ?? '').toString(),
+        'party': (m['party'] ?? '').toString(),
+        'party_name': (m['party_name'] ?? '').toString(),
+        'position': (m['position'] ?? '').toString(),
+        'program': (m['department'] ?? '').toString(),
+        'year_section': (m['year_section'] ?? '').toString(),
+        'platform': (m['platform'] ?? '').toString(),
+        'photoUrl': m['photoUrl'],
+      };
+      _showCandidateDetails(context, candidate);
+    }
+  }
+
+  void _openPhoto(BuildContext context, String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            elevation: 0,
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 5,
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.white70, size: 56),
               ),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-                top: false,
-                child: Material(
-                  color: Theme.of(ctx).scaffoldBackgroundColor,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
-                      top: 16,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPartyDetails(BuildContext context, String partyName, String? logoUrl) {
+    final theme = Theme.of(context);
+    List<Map<String, dynamic>> partyCandidates = widget.candidates.where((c) {
+      final p = (c['party'] ?? c['party_name'] ?? c['organization'] ?? '').toString().trim();
+      return p.toLowerCase() == partyName.toLowerCase();
+    }).cast<Map<String, dynamic>>().toList();
+    int _posIndex(String pos) {
+      final order = [
+        'President',
+        'Vice President',
+        'Secretary',
+        'Treasurer',
+        'Auditor',
+        'P.I.O.', 'PIO', 'Public Information Officer',
+        'Representative',
+      ];
+      final i = order.indexWhere((e) => e.toLowerCase() == pos.toLowerCase());
+      return i >= 0 ? i : 1000;
+    }
+    final positions = partyCandidates.map((e) => (e['position'] ?? '').toString()).toSet().toList()
+      ..sort((a, b) => _posIndex(a).compareTo(_posIndex(b)));
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          builder: (_, controller) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: logoUrl == null ? null : () => _openPhoto(ctx, logoUrl),
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: const Color(0xFFF1EEF8),
+                          child: ClipOval(
+                            child: logoUrl != null
+                                ? Image.network(logoUrl, width: 48, height: 48, fit: BoxFit.cover,
+                                    errorBuilder: (c, e, s) => const Icon(Icons.flag, color: Color(0xFF6E63F6)))
+                                : const Icon(Icons.flag, color: Color(0xFF6E63F6)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CircleAvatar(
-                              radius: 28,
-                              backgroundColor: const Color(0xFFF1EEF8),
-                              child: ClipOval(
-                                child: imageUrl != null
-                                    ? Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)))
-                                    : Icon(isParty ? Icons.flag : Icons.person, color: const Color(0xFF6E63F6)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 4),
-                                  Text(subtitle, style: theme.textTheme.bodySmall),
-                                ],
-                              ),
-                            ),
+                            Text(partyName, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text('${partyCandidates.length} candidate${partyCandidates.length == 1 ? '' : 's'}',
+                                style: theme.textTheme.bodySmall?.copyWith(color: Colors.black54)),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        if (!isParty)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _detailLine(theme, 'Political party:', partyName.isNotEmpty ? partyName : 'Independent candidate (no political party)'),
-                              const SizedBox(height: 8),
-                              if (department.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                _detailLine(theme, 'Department:', department),
-                              ],
-                              if (platform.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                _detailLine(theme, 'Platform:', platform),
-                              ],
-                            ],
-                          )
-                        else
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: const Color(0xFFF7F5FF), borderRadius: BorderRadius.circular(12)),
-                            child: Text('Party: ${m['name']}', style: theme.textTheme.bodyMedium),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView(
+                      controller: controller,
+                      children: [
+                        for (final pos in positions) ...[
+                          if (pos.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Text(pos, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                          ...partyCandidates
+                              .where((c) => (c['position'] ?? '').toString() == pos)
+                              .map((c) {
+                            final photo = c['photoUrl'] as String?;
+                            final nm = (c['name'] ?? '').toString();
+                            final prg = (c['program'] ?? '').toString();
+                            final ys = (c['year_section'] ?? '').toString();
+                            final subtitle = [prg, ys].where((s) => s.isNotEmpty).join(' • ');
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                backgroundColor: const Color(0xFFEAEAEA),
+                                foregroundColor: Colors.grey,
+                                backgroundImage: photo != null ? NetworkImage(photo) : null,
+                                child: photo == null ? const Icon(Icons.person) : null,
+                              ),
+                              title: Text(nm, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+                              subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
+                              onTap: () => _showCandidateDetails(ctx, c),
+                            );
+                          }).toList(),
+                          const SizedBox(height: 8),
+                        ],
+                        if (partyCandidates.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Text('No candidates found', style: theme.textTheme.bodyMedium),
+                            ),
                           ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
-                        ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-            ),
-          ],
+            );
+          },
         );
       },
-      transitionBuilder: (ctx, anim, secAnim, child) {
-        final offset = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut));
-        return SlideTransition(position: offset, child: FadeTransition(opacity: anim, child: child));
+    );
+  }
+
+  void _showCandidateDetails(BuildContext context, Map<String, dynamic> c) {
+    final name = (c['name'] ?? '').toString();
+    final org = (c['organization'] ?? c['party'] ?? c['party_name'] ?? '').toString();
+    final pos = (c['position'] ?? '').toString();
+    final program = (c['program'] ?? '').toString();
+    final yearSection = (c['year_section'] ?? '').toString();
+    final platform = (c['platform'] ?? '').toString();
+    final photo = c['photoUrl'] as String?;
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        final th = Theme.of(ctx);
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          builder: (_, controller) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: photo == null ? null : () => _openPhoto(ctx, photo),
+                        child: CircleAvatar(
+                          radius: 36,
+                          backgroundColor: const Color(0xFFEAEAEA),
+                          foregroundColor: Colors.grey,
+                          backgroundImage: photo != null ? NetworkImage(photo) : null,
+                          child: photo == null ? const Icon(Icons.person, size: 36) : null,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name, style: th.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text(pos, style: th.textTheme.bodyMedium?.copyWith(color: Colors.black54)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView(
+                      controller: controller,
+                      children: [
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.groups_outlined),
+                          title: const Text('Organization'),
+                          subtitle: Text(org.isEmpty ? '—' : org),
+                        ),
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.badge_outlined),
+                          title: const Text('Position'),
+                          subtitle: Text(pos.isEmpty ? '—' : pos),
+                        ),
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.school_outlined),
+                          title: const Text('Department / Program'),
+                          subtitle: Text(program.isEmpty ? '—' : program),
+                        ),
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.class_outlined),
+                          title: const Text('Year & Section'),
+                          subtitle: Text(yearSection.isEmpty ? '—' : yearSection),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: Text('Platform', style: th.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(platform.isEmpty ? '—' : platform, style: th.textTheme.bodyMedium),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
       },
     );
   }

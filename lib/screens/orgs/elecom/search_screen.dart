@@ -11,7 +11,36 @@ class SearchScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  width: 1,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(
+                'assets/images/ELECOM.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Opacity(
+              opacity: 0.7,
+              child: Image.asset(
+                'assets/images/img_text/elecom_black.png',
+                height: 22,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ],
+        ),
       ),
       body: Align(
         alignment: Alignment.topCenter,
