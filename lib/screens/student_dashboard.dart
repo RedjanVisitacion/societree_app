@@ -271,6 +271,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
   }
 
+  Future<void> _refreshData() async {
+    await Future.wait([_loadParties(), _loadCandidates()]);
+  }
+
   @override
   void dispose() {
     _ticker?.cancel();
@@ -548,69 +552,77 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Widget _buildBodyContent(ThemeData theme, bool isElecom) {
     return isElecom
         ? Center(
-            child: NotificationListener<ScrollNotification>(
-              onNotification: (n) {
-                if (_showAllParties &&
-                    n is ScrollUpdateNotification &&
-                    n.metrics.pixels > 0) {
-                  _autoCollapseTimer?.cancel();
-                  _autoCollapseTimer = Timer(const Duration(seconds: 3), () {
-                    if (!mounted) return;
-                    setState(() => _showAllParties = false);
-                  });
-                }
-                return false;
-              },
-              child: SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: _buildElecomDashboard(theme),
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (_showAllParties &&
+                      n is ScrollUpdateNotification &&
+                      n.metrics.pixels > 0) {
+                    _autoCollapseTimer?.cancel();
+                    _autoCollapseTimer = Timer(const Duration(seconds: 3), () {
+                      if (!mounted) return;
+                      setState(() => _showAllParties = false);
+                    });
+                  }
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: _buildElecomDashboard(theme),
+                    ),
                   ),
                 ),
               ),
             ),
           )
         : Center(
-            child: SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 56,
-                        backgroundColor: const Color(0xFFF0F0F0),
-                        child: ClipOval(
-                          child: Image.asset(
-                            widget.assetPath,
-                            width: 90,
-                            fit: BoxFit.contain,
-                            errorBuilder: (c, e, s) => const Icon(
-                              Icons.school,
-                              size: 56,
-                              color: Colors.grey,
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: 56,
+                          backgroundColor: const Color(0xFFF0F0F0),
+                          child: ClipOval(
+                            child: Image.asset(
+                              widget.assetPath,
+                              width: 90,
+                              fit: BoxFit.contain,
+                              errorBuilder: (c, e, s) => const Icon(
+                                Icons.school,
+                                size: 56,
+                                color: Colors.grey,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        widget.orgName,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.orgName,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Details for ${widget.orgName} will appear here.',
-                        style: theme.textTheme.bodyMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Text(
+                          'Details for ${widget.orgName} will appear here.',
+                          style: theme.textTheme.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
