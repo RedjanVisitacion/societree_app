@@ -47,6 +47,135 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _loadCandidates();
   }
 
+  void _openPhoto(BuildContext context, String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            elevation: 0,
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 5,
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.white70, size: 56),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCandidateDetails(BuildContext context, Map<String, dynamic> c) {
+    final theme = Theme.of(context);
+    final name = (c['name'] ?? '').toString();
+    final org = (c['organization'] ?? c['party'] ?? c['party_name'] ?? '').toString();
+    final pos = (c['position'] ?? '').toString();
+    final program = (c['program'] ?? '').toString();
+    final yearSection = (c['year_section'] ?? '').toString();
+    final platform = (c['platform'] ?? '').toString();
+    final photo = c['photoUrl'] as String?;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        final th = Theme.of(ctx);
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          builder: (_, controller) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: photo == null ? null : () => _openPhoto(context, photo),
+                        child: CircleAvatar(
+                          radius: 36,
+                          backgroundColor: const Color(0xFFEAEAEA),
+                          foregroundColor: Colors.grey,
+                          backgroundImage: photo != null ? NetworkImage(photo) : null,
+                          child: photo == null ? const Icon(Icons.person, size: 36) : null,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name, style: th.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text(pos, style: th.textTheme.bodyMedium?.copyWith(color: Colors.black54)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView(
+                      controller: controller,
+                      children: [
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.groups_outlined),
+                          title: const Text('Organization'),
+                          subtitle: Text(org.isEmpty ? '—' : org),
+                        ),
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.badge_outlined),
+                          title: const Text('Position'),
+                          subtitle: Text(pos.isEmpty ? '—' : pos),
+                        ),
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.school_outlined),
+                          title: const Text('Department / Program'),
+                          subtitle: Text(program.isEmpty ? '—' : program),
+                        ),
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.class_outlined),
+                          title: const Text('Year & Section'),
+                          subtitle: Text(yearSection.isEmpty ? '—' : yearSection),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: Text('Platform', style: th.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(platform.isEmpty ? '—' : platform, style: th.textTheme.bodyMedium),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _detailLine(ThemeData theme, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,14 +649,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: const Color(0xFFF1EEF8),
-                        child: ClipOval(
-                          child: logoUrl != null
-                              ? Image.network(logoUrl, width: 48, height: 48, fit: BoxFit.cover,
-                                  errorBuilder: (c, e, s) => const Icon(Icons.flag, color: Color(0xFF6E63F6)))
-                              : const Icon(Icons.flag, color: Color(0xFF6E63F6)),
+                      GestureDetector(
+                        onTap: logoUrl == null ? null : () => _openPhoto(context, logoUrl),
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: const Color(0xFFF1EEF8),
+                          child: ClipOval(
+                            child: logoUrl != null
+                                ? Image.network(logoUrl, width: 48, height: 48, fit: BoxFit.cover,
+                                    errorBuilder: (c, e, s) => const Icon(Icons.flag, color: Color(0xFF6E63F6)))
+                                : const Icon(Icons.flag, color: Color(0xFF6E63F6)),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -575,6 +707,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                               ),
                               title: Text(nm, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
                               subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
+                              onTap: () => _showCandidateDetails(context, c),
                             );
                           }).toList(),
                           const SizedBox(height: 8),
