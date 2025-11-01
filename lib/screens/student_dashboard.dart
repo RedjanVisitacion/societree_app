@@ -1,5 +1,7 @@
 // ignore_for_file: unused_element
 
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:ui';
@@ -114,10 +116,42 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: !isElecom,
-        title: Text(widget.orgName),
+        title: isElecom
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        width: 1,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'assets/images/ELECOM.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Opacity(
+                    opacity: 0.7,
+                    child: Image.asset(
+                      'assets/images/img_text/elecom_black.png',
+                      height: 24,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ],
+              )
+            : Text(widget.orgName),
         actions: [
           IconButton(onPressed: () {}, icon: const Icon(Icons.help_outline)),
           IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined)),
+          
           PopupMenuButton<String>(
             tooltip: 'Logout options',
             icon: const Icon(Icons.logout),
@@ -151,6 +185,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 }
               }
             },
+            
             itemBuilder: (ctx) => [
               const PopupMenuItem(value: 'home', child: Text('Societree')),
               const PopupMenuItem(value: 'logout', child: Text('Logout')),
@@ -326,17 +361,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          'assets/images/ELECOM.png',
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.contain,
-                          errorBuilder: (c, e, s) => const Icon(Icons.how_to_vote, color: Colors.white),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
