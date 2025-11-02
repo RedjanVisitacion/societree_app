@@ -6,50 +6,70 @@ class StudentBottomNavBar {
     required BuildContext context,
     required bool isElecom,
     required bool isMenuOpen,
+    bool isVisible = true,
   }) {
     if (!isElecom) return null;
 
-    final bottomNavBar = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Divider(height: 1, thickness: 1),
-        BottomNavigationBar(
-          currentIndex: 0,
-          onTap: (i) {
-            if (i != 0) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    ['Home', 'Election', 'Poll History', 'Status'][i],
+    final bottomNavBar = Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Divider(height: 1, thickness: 1),
+          BottomNavigationBar(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            elevation: 0,
+            currentIndex: 0,
+            onTap: (i) {
+              if (i != 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ['Home', 'Election', 'Poll History', 'Status'][i],
+                    ),
                   ),
-                ),
-              );
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.how_to_vote_outlined),
-              label: 'Election',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history),
-              label: 'Poll History',
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.check), label: 'Status'),
-          ],
+                );
+              }
+            },
+            type: BottomNavigationBarType.fixed,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.how_to_vote_outlined),
+                label: 'Election',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.history),
+                label: 'Poll History',
+              ),
+              BottomNavigationBarItem(icon: Icon(Icons.check), label: 'Status'),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    Widget wrappedNavBar = ClipRect(
+      child: AnimatedOpacity(
+        opacity: isVisible ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        child: AnimatedSlide(
+          offset: isVisible ? Offset.zero : const Offset(0, 1),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          child: bottomNavBar,
         ),
-      ],
+      ),
     );
 
     if (isMenuOpen) {
       return Stack(
         children: [
-          bottomNavBar,
+          wrappedNavBar,
           Positioned.fill(
             child: ClipRect(
               child: BackdropFilter(
@@ -62,6 +82,6 @@ class StudentBottomNavBar {
       );
     }
 
-    return bottomNavBar;
+    return wrappedNavBar;
   }
 }

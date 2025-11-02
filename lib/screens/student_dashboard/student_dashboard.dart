@@ -1,6 +1,7 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:societree_app/screens/student_dashboard/services/student_dashboard_service.dart';
@@ -8,6 +9,76 @@ import 'package:societree_app/screens/student_dashboard/widgets/student_dashboar
 import 'package:societree_app/screens/student_dashboard/widgets/student_bottom_nav_bar.dart';
 import 'package:societree_app/screens/student_dashboard/widgets/elecom_dashboard_content.dart';
 import 'package:societree_app/screens/student_dashboard/widgets/party_details_sheet.dart';
+
+/// Custom scroll physics for smooth momentum scrolling similar to Facebook
+class SmoothMomentumScrollPhysics extends ClampingScrollPhysics {
+  const SmoothMomentumScrollPhysics({super.parent});
+
+  @override
+  SmoothMomentumScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return SmoothMomentumScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  // Custom velocity calculation for better momentum feel
+  @override
+  double get dragStartDistanceMotionThreshold => 3.5;
+
+  // Override to provide smoother deceleration with better momentum
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
+    final tolerance = this.tolerance;
+
+    // If velocity is very small, stop immediately
+    if (velocity.abs() < tolerance.velocity) {
+      return super.createBallisticSimulation(position, velocity);
+    }
+
+    // Handle out of bounds with spring simulation
+    if (position.outOfRange) {
+      return super.createBallisticSimulation(position, velocity);
+    }
+
+    // Calculate distance to boundaries
+    final double outOfBoundsExtent = velocity > 0
+        ? position.maxScrollExtent - position.pixels
+        : position.minScrollExtent - position.pixels;
+
+    // If we're very close to the edge, use spring simulation for smooth clamping
+    if (outOfBoundsExtent.abs() < tolerance.distance * 2) {
+      return super.createBallisticSimulation(position, velocity);
+    }
+
+    // For in-bounds scrolling, use friction simulation for smoother momentum
+    // Lower friction constant = longer momentum scrolling (like Facebook)
+    final double friction =
+        0.015; // Very low friction for smooth, long momentum
+
+    // Estimate where friction simulation would end (when velocity becomes very small)
+    // Friction simulation: v(t) = v0 * e^(-friction * t)
+    // When v(t) ≈ 0, we can estimate the distance traveled
+    final double estimatedDistance = velocity.abs() / friction;
+    final double estimatedEndPosition =
+        position.pixels +
+        (velocity > 0 ? estimatedDistance : -estimatedDistance);
+
+    // If estimated position would go significantly out of bounds, use spring simulation
+    if (estimatedEndPosition < position.minScrollExtent - tolerance.distance ||
+        estimatedEndPosition > position.maxScrollExtent + tolerance.distance) {
+      return super.createBallisticSimulation(position, velocity);
+    }
+
+    // Otherwise use friction for smooth momentum scrolling
+    return FrictionSimulation(
+      friction,
+      position.pixels,
+      velocity,
+      tolerance: tolerance,
+    );
+  }
+}
 
 class StudentDashboard extends StatefulWidget {
   final String orgName;
@@ -34,6 +105,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
   bool _showAllParties = false;
   Timer? _autoCollapseTimer;
   bool _isMenuOpen = false;
+  bool _isBottomBarVisible = true;
+  ScrollController? _scrollController;
+  double _lastScrollOffset = 0;
 
   @override
   void initState() {
@@ -45,6 +119,45 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     _loadParties();
     _loadCandidates();
+    _scrollController = ScrollController();
+    _scrollController!.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController == null || !_scrollController!.hasClients) return;
+
+    final currentOffset = _scrollController!.offset;
+    const threshold =
+        10.0; // Minimum scroll distance to trigger visibility change
+
+    // Always show bottom bar when at the top
+    if (currentOffset <= 0) {
+      if (!_isBottomBarVisible) {
+        setState(() {
+          _isBottomBarVisible = true;
+        });
+      }
+      _lastScrollOffset = currentOffset;
+      return;
+    }
+
+    final scrollDelta = currentOffset - _lastScrollOffset;
+
+    // Only update if scroll delta exceeds threshold
+    if (scrollDelta.abs() > threshold) {
+      if (scrollDelta > 0 && _isBottomBarVisible) {
+        // Scrolling down - hide bottom bar
+        setState(() {
+          _isBottomBarVisible = false;
+        });
+      } else if (scrollDelta < 0 && !_isBottomBarVisible) {
+        // Scrolling up - show bottom bar
+        setState(() {
+          _isBottomBarVisible = true;
+        });
+      }
+      _lastScrollOffset = currentOffset;
+    }
   }
 
   void _tick() {
@@ -83,6 +196,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
   void dispose() {
     _ticker?.cancel();
     _autoCollapseTimer?.cancel();
+    _scrollController?.removeListener(_onScroll);
+    _scrollController?.dispose();
     super.dispose();
   }
 
@@ -118,6 +233,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         context: context,
         isElecom: isElecom,
         isMenuOpen: _isMenuOpen,
+        isVisible: _isBottomBarVisible,
       ),
     );
   }
@@ -141,7 +257,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   return false;
                 },
                 child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  controller: _scrollController,
+                  physics: const SmoothMomentumScrollPhysics(),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 600),
                     child: Padding(
@@ -175,7 +292,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
             child: RefreshIndicator(
               onRefresh: _refreshData,
               child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                controller: _scrollController,
+                physics: const SmoothMomentumScrollPhysics(),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 600),
                   child: Padding(
