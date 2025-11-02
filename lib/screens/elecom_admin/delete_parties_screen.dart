@@ -136,7 +136,7 @@ class _DeletePartiesScreenState extends State<DeletePartiesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delete Parties'),
+        title: const Text('Unregistered Party'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

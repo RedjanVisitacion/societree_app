@@ -172,7 +172,7 @@ class _DeleteCandidatesScreenState extends State<DeleteCandidatesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delete Candidates'),
+        title: const Text('Unregistered Candidates'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

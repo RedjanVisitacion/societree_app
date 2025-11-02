@@ -21,13 +21,23 @@ class PartiesCandidatesGrid extends StatelessWidget {
         ),
       );
     }
+    if (parties.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.search_off, size: 48, color: Colors.grey),
+              SizedBox(height: 8),
+              Text('No parties registered yet', textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      );
+    }
     final theme = Theme.of(context);
-    final items = (parties.isEmpty
-        ? List<Map<String, dynamic>>.generate(
-            6,
-            (i) => {'name': 'Party ${i + 1}', 'logoUrl': null},
-          )
-        : parties);
+    final items = parties;
     return GridView.count(
       crossAxisCount: 3,
       mainAxisSpacing: 12,
