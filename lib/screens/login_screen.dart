@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:societree_app/screens/societree/societree_dashboard.dart';
 import '../services/api_service.dart';
-import 'admin_home_screen.dart';
+import 'elecom_admin/admin_home_screen.dart';
 import 'package:societree_app/config/api_config.dart';
 
 class LoginScreen extends StatefulWidget {

@@ -9,14 +9,21 @@ class ApiService {
   static const Duration _timeout = Duration(seconds: 10);
 
   Map<String, String> get _jsonHeaders => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
-  Future<Map<String, dynamic>> login({required String studentId, required String password}) async {
+  Future<Map<String, dynamic>> login({
+    required String studentId,
+    required String password,
+  }) async {
     final uri = Uri.parse('$baseUrl/login.php');
     final res = await http
-        .post(uri, headers: _jsonHeaders, body: jsonEncode({'student_id': studentId, 'password': password}))
+        .post(
+          uri,
+          headers: _jsonHeaders,
+          body: jsonEncode({'student_id': studentId, 'password': password}),
+        )
         .timeout(_timeout);
     return _decode(res);
   }
@@ -47,23 +54,31 @@ class ApiService {
       'course': course,
       'year_section': yearSection,
       'platform': platform,
-      if (candidateType != null && candidateType.isNotEmpty) 'candidate_type': candidateType,
+      if (candidateType != null && candidateType.isNotEmpty)
+        'candidate_type': candidateType,
       if (partyName != null && partyName.isNotEmpty) 'party_name': partyName,
-      if (photoBase64 != null && photoBase64.isNotEmpty) 'photo_base64': photoBase64,
-      if (photoMimeType != null && photoMimeType.isNotEmpty) 'photo_mime': photoMimeType,
+      if (photoBase64 != null && photoBase64.isNotEmpty)
+        'photo_base64': photoBase64,
+      if (photoMimeType != null && photoMimeType.isNotEmpty)
+        'photo_mime': photoMimeType,
     };
-    final res = await http.post(
-      uri,
-      headers: _jsonHeaders,
-      body: jsonEncode(payload),
-    ).timeout(_timeout);
+    final res = await http
+        .post(uri, headers: _jsonHeaders, body: jsonEncode(payload))
+        .timeout(_timeout);
     return _decode(res);
   }
 
-  Future<Map<String, dynamic>> register({required String studentId, required String password}) async {
+  Future<Map<String, dynamic>> register({
+    required String studentId,
+    required String password,
+  }) async {
     final uri = Uri.parse('$baseUrl/register.php');
     final res = await http
-        .post(uri, headers: _jsonHeaders, body: jsonEncode({'student_id': studentId, 'password': password}))
+        .post(
+          uri,
+          headers: _jsonHeaders,
+          body: jsonEncode({'student_id': studentId, 'password': password}),
+        )
         .timeout(_timeout);
     return _decode(res);
   }
@@ -93,11 +108,14 @@ class ApiService {
       'course': course,
       'year_section': yearSection,
       'platform': platform,
-      if (candidateType != null && candidateType.isNotEmpty) 'candidate_type': candidateType,
+      if (candidateType != null && candidateType.isNotEmpty)
+        'candidate_type': candidateType,
       if (partyName != null && partyName.isNotEmpty) 'party_name': partyName,
       'photo_url': photoUrl,
     };
-    final res = await http.post(uri, headers: _jsonHeaders, body: jsonEncode(payload)).timeout(_timeout);
+    final res = await http
+        .post(uri, headers: _jsonHeaders, body: jsonEncode(payload))
+        .timeout(_timeout);
     return _decode(res);
   }
 
@@ -137,19 +155,60 @@ class ApiService {
     }
     if (photoFilePath != null && photoFilePath.isNotEmpty) {
       try {
-        req.files.add(await http.MultipartFile.fromPath('photo', photoFilePath));
+        req.files.add(
+          await http.MultipartFile.fromPath('photo', photoFilePath),
+        );
       } catch (_) {
         // ignore silently; server will handle missing photo
       }
     }
     if (partyLogoFilePath != null && partyLogoFilePath.isNotEmpty) {
       try {
-        req.files.add(await http.MultipartFile.fromPath('party_logo', partyLogoFilePath));
-      } catch (_) {
-      }
+        req.files.add(
+          await http.MultipartFile.fromPath('party_logo', partyLogoFilePath),
+        );
+      } catch (_) {}
     }
     final streamed = await req.send().timeout(_timeout);
     final res = await http.Response.fromStream(streamed);
+    return _decode(res);
+  }
+
+  Future<Map<String, dynamic>> deleteCandidate({
+    required int candidateId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/delete_candidate.php');
+    final res = await http
+        .post(
+          uri,
+          headers: _jsonHeaders,
+          body: jsonEncode({'candidate_id': candidateId}),
+        )
+        .timeout(_timeout);
+    return _decode(res);
+  }
+
+  Future<Map<String, dynamic>> deleteParty({required String partyName}) async {
+    final uri = Uri.parse('$baseUrl/delete_party.php');
+    final res = await http
+        .post(
+          uri,
+          headers: _jsonHeaders,
+          body: jsonEncode({'party_name': partyName}),
+        )
+        .timeout(_timeout);
+    return _decode(res);
+  }
+
+  Future<Map<String, dynamic>> getCandidates() async {
+    final uri = Uri.parse('$baseUrl/get_candidates.php');
+    final res = await http.get(uri).timeout(_timeout);
+    return _decode(res);
+  }
+
+  Future<Map<String, dynamic>> getParties() async {
+    final uri = Uri.parse('$baseUrl/get_parties.php');
+    final res = await http.get(uri).timeout(_timeout);
     return _decode(res);
   }
 
@@ -171,7 +230,9 @@ class ApiService {
       // Debug: log invalid JSON responses
       final raw = res.body;
       // ignore: avoid_print
-      print('API ${res.request?.url} -> ${res.statusCode} RAW: ${raw.substring(0, raw.length > 300 ? 300 : raw.length)}');
+      print(
+        'API ${res.request?.url} -> ${res.statusCode} RAW: ${raw.substring(0, raw.length > 300 ? 300 : raw.length)}',
+      );
       return {
         'success': false,
         'message': 'Invalid server response',
@@ -181,4 +242,3 @@ class ApiService {
     }
   }
 }
-

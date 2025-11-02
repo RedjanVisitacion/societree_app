@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:societree_app/screens/login_screen.dart';
-import 'package:societree_app/screens/student_dashboard.dart';
+import 'package:societree_app/screens/student_dashboard/student_dashboard.dart';
 
 class SocieTreeDashboard extends StatefulWidget {
   const SocieTreeDashboard({super.key});

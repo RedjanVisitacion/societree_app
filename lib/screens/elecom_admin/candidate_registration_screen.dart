@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+
+import 'package:societree_app/services/api_service.dart';
 // import 'dart:convert';
 
 class CandidateRegistrationScreen extends StatefulWidget {
@@ -10,13 +11,21 @@ class CandidateRegistrationScreen extends StatefulWidget {
   final String? initialCandidateType;
   final String? initialPartyName;
   final String? initialPartyLogoPath;
-  const CandidateRegistrationScreen({super.key, required this.api, this.initialCandidateType, this.initialPartyName, this.initialPartyLogoPath});
+  const CandidateRegistrationScreen({
+    super.key,
+    required this.api,
+    this.initialCandidateType,
+    this.initialPartyName,
+    this.initialPartyLogoPath,
+  });
 
   @override
-  State<CandidateRegistrationScreen> createState() => _CandidateRegistrationScreenState();
+  State<CandidateRegistrationScreen> createState() =>
+      _CandidateRegistrationScreenState();
 }
 
-class _CandidateRegistrationScreenState extends State<CandidateRegistrationScreen> {
+class _CandidateRegistrationScreenState
+    extends State<CandidateRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _studentIdCtrl = TextEditingController();
   final _firstNameCtrl = TextEditingController();
@@ -37,7 +46,10 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
 
   final List<String> _orgOptions = const ['USG', 'SITE', 'PAFE', 'AFPROTECHS'];
   final List<String> _courseOptions = const ['BSIT', 'BTLED', 'BFPT'];
-  final List<String> _candidateTypeOptions = const ['Independent', 'Political Party'];
+  final List<String> _candidateTypeOptions = const [
+    'Independent',
+    'Political Party',
+  ];
   final Map<String, List<String>> _positionsByOrg = const {
     'USG': [
       'President',
@@ -84,31 +96,64 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
   void initState() {
     super.initState();
     _candidateType = widget.initialCandidateType;
-    if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) {
+    if (widget.initialCandidateType == 'Political Party' &&
+        (widget.initialPartyName ?? '').isNotEmpty) {
       _partyNameCtrl.text = widget.initialPartyName!;
     }
-    if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyLogoPath ?? '').isNotEmpty) {
+    if (widget.initialCandidateType == 'Political Party' &&
+        (widget.initialPartyLogoPath ?? '').isNotEmpty) {
       _partyLogo = XFile(widget.initialPartyLogoPath!);
     }
   }
 
   final Map<String, List<String>> _sectionsByCourse = const {
     'BSIT': [
-      'BSIT-1A', 'BSIT-1B', 'BSIT-1C', 'BSIT-1D',
-      'BSIT-2A', 'BSIT-2B', 'BSIT-2C', 'BSIT-2D',
-      'BSIT-3A', 'BSIT-3B', 'BSIT-3C', 'BSIT-3D',
-      'BSIT-4A', 'BSIT-4B', 'BSIT-4C', 'BSIT-4D', 'BSIT-4E', 'BSIT-4F'
+      'BSIT-1A',
+      'BSIT-1B',
+      'BSIT-1C',
+      'BSIT-1D',
+      'BSIT-2A',
+      'BSIT-2B',
+      'BSIT-2C',
+      'BSIT-2D',
+      'BSIT-3A',
+      'BSIT-3B',
+      'BSIT-3C',
+      'BSIT-3D',
+      'BSIT-4A',
+      'BSIT-4B',
+      'BSIT-4C',
+      'BSIT-4D',
+      'BSIT-4E',
+      'BSIT-4F',
     ],
     'BTLED': [
-      'BTLED-ICT-1A', 'BTLED-ICT-2A', 'BTLED-ICT-3A', 'BTLED-ICT-4A',
-      'BTLED-IA-1A', 'BTLED-IA-2A', 'BTLED-IA-3A', 'BTLED-IA-4A',
-      'BTLED-HE-1A', 'BTLED-HE-2A', 'BTLED-HE-3A', 'BTLED-HE-4A',
+      'BTLED-ICT-1A',
+      'BTLED-ICT-2A',
+      'BTLED-ICT-3A',
+      'BTLED-ICT-4A',
+      'BTLED-IA-1A',
+      'BTLED-IA-2A',
+      'BTLED-IA-3A',
+      'BTLED-IA-4A',
+      'BTLED-HE-1A',
+      'BTLED-HE-2A',
+      'BTLED-HE-3A',
+      'BTLED-HE-4A',
     ],
     'BFPT': [
-      'BFPT-1A', 'BFPT-1B', 'BFPT-1C', 'BFPT-1D',
-      'BFPT-2A', 'BFPT-2B', 'BFPT-2C',
-      'BFPT-3A', 'BFPT-3B', 'BFPT-3C',
-      'BFPT-4A', 'BFPT-4B',
+      'BFPT-1A',
+      'BFPT-1B',
+      'BFPT-1C',
+      'BFPT-1D',
+      'BFPT-2A',
+      'BFPT-2B',
+      'BFPT-2C',
+      'BFPT-3A',
+      'BFPT-3B',
+      'BFPT-3C',
+      'BFPT-4A',
+      'BFPT-4B',
     ],
   };
 
@@ -127,14 +172,21 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
     if (_pickingMedia) return;
     setState(() => _pickingMedia = true);
     try {
-      final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final img = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
       if (img != null) {
         setState(() => _pickedImage = img);
       }
     } on PlatformException catch (_) {
       // ignore: use_build_context_synchronously
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Another picker is active. Please try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Another picker is active. Please try again.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _pickingMedia = false);
@@ -145,13 +197,20 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
     if (_pickingMedia) return;
     setState(() => _pickingMedia = true);
     try {
-      final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final img = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
       if (img != null) {
         setState(() => _partyLogo = img);
       }
     } on PlatformException catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Another picker is active. Please try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Another picker is active. Please try again.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _pickingMedia = false);
@@ -173,7 +232,11 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
           } else {
             // Skip large photo to avoid server 500 due to upload limits
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Photo is larger than 900KB, uploading without photo.')),
+              const SnackBar(
+                content: Text(
+                  'Photo is larger than 900KB, uploading without photo.',
+                ),
+              ),
             );
           }
         } catch (_) {
@@ -188,7 +251,11 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
             partyLogoPath = _partyLogo!.path;
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Party logo is larger than 900KB, submitting without logo.')),
+              const SnackBar(
+                content: Text(
+                  'Party logo is larger than 900KB, submitting without logo.',
+                ),
+              ),
             );
           }
         } catch (_) {
@@ -206,12 +273,18 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         yearSection: _section!,
         platform: _platformCtrl.text.trim(),
         candidateType: _candidateType,
-        partyName: _candidateType == 'Political Party' ? _partyNameCtrl.text.trim() : null,
+        partyName: _candidateType == 'Political Party'
+            ? _partyNameCtrl.text.trim()
+            : null,
         photoFilePath: photoPath,
-        partyLogoFilePath: _candidateType == 'Political Party' ? partyLogoPath : null,
+        partyLogoFilePath: _candidateType == 'Political Party'
+            ? partyLogoPath
+            : null,
       );
       final success = res['success'] == true;
-      final msg = (res['message'] ?? (success ? 'Candidate registered' : 'Failed')).toString();
+      final msg =
+          (res['message'] ?? (success ? 'Candidate registered' : 'Failed'))
+              .toString();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       if (success) {
@@ -224,7 +297,8 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
         final keepParty = (_candidateType == 'Political Party');
         if (!keepParty) {
           _partyNameCtrl.clear();
-        } else if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) {
+        } else if (widget.initialCandidateType == 'Political Party' &&
+            (widget.initialPartyName ?? '').isNotEmpty) {
           _partyNameCtrl.text = widget.initialPartyName!;
         }
         setState(() {
@@ -236,13 +310,16 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
           _candidateType = _candidateType;
           _pickedImage = null; // clear candidate photo preview
           if (!keepParty) {
-            _partyLogo = null; // clear party logo only for non-party submissions
+            _partyLogo =
+                null; // clear party logo only for non-party submissions
           }
         });
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Network error')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -272,13 +349,22 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                             CircleAvatar(
                               radius: 48,
                               backgroundColor: Colors.grey.shade300,
-                              backgroundImage: _partyLogo != null ? FileImage(File(_partyLogo!.path)) as ImageProvider : null,
+                              backgroundImage: _partyLogo != null
+                                  ? FileImage(File(_partyLogo!.path))
+                                        as ImageProvider
+                                  : null,
                               child: _partyLogo == null
-                                  ? const Icon(Icons.flag_outlined, size: 36, color: Colors.black54)
+                                  ? const Icon(
+                                      Icons.flag_outlined,
+                                      size: 36,
+                                      color: Colors.black54,
+                                    )
                                   : null,
                             ),
                             const SizedBox(height: 8),
-                            if (widget.initialCandidateType == 'Political Party' && (widget.initialPartyName ?? '').isNotEmpty) ...[
+                            if (widget.initialCandidateType ==
+                                    'Political Party' &&
+                                (widget.initialPartyName ?? '').isNotEmpty) ...[
                               Text(
                                 widget.initialPartyName!,
                                 textAlign: TextAlign.center,
@@ -288,20 +374,30 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                               TextFormField(
                                 controller: _partyNameCtrl,
                                 textAlign: TextAlign.center,
-                                decoration: const InputDecoration(labelText: 'Party name'),
+                                decoration: const InputDecoration(
+                                  labelText: 'Party name',
+                                ),
                                 textInputAction: TextInputAction.next,
                                 validator: (v) {
                                   if (_candidateType == 'Political Party') {
-                                    return (v == null || v.trim().isEmpty) ? 'Party name is required' : null;
+                                    return (v == null || v.trim().isEmpty)
+                                        ? 'Party name is required'
+                                        : null;
                                   }
                                   return null;
                                 },
                               ),
                               const SizedBox(height: 6),
                               TextButton.icon(
-                                onPressed: (_submitting || _pickingMedia) ? null : _pickPartyLogo,
+                                onPressed: (_submitting || _pickingMedia)
+                                    ? null
+                                    : _pickPartyLogo,
                                 icon: const Icon(Icons.image_outlined),
-                                label: Text(_partyLogo == null ? 'Upload Party Logo (optional)' : 'Change Party Logo'),
+                                label: Text(
+                                  _partyLogo == null
+                                      ? 'Upload Party Logo (optional)'
+                                      : 'Change Party Logo',
+                                ),
                               ),
                             ],
                           ],
@@ -311,93 +407,169 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                     ],
                     TextFormField(
                       controller: _studentIdCtrl,
-                      decoration: const InputDecoration(labelText: 'Candidate student ID'),
+                      decoration: const InputDecoration(
+                        labelText: 'Candidate student ID',
+                      ),
                       textInputAction: TextInputAction.next,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
                     TextFormField(
                       controller: _firstNameCtrl,
-                      decoration: const InputDecoration(labelText: 'First name'),
+                      decoration: const InputDecoration(
+                        labelText: 'First name',
+                      ),
                       textInputAction: TextInputAction.next,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
                     TextFormField(
                       controller: _middleNameCtrl,
-                      decoration: const InputDecoration(labelText: 'Middle name (N/A if nothing)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Middle name (N/A if nothing)',
+                      ),
                       textInputAction: TextInputAction.next,
                     ),
                     TextFormField(
                       controller: _lastNameCtrl,
                       decoration: const InputDecoration(labelText: 'Last name'),
                       textInputAction: TextInputAction.next,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
                     if (widget.initialCandidateType != null) ...[
                       InputDecorator(
-                        decoration: const InputDecoration(labelText: 'Candidate type'),
+                        decoration: const InputDecoration(
+                          labelText: 'Candidate type',
+                        ),
                         child: Text(widget.initialCandidateType!),
                       ),
                     ] else ...[
                       DropdownButtonFormField<String>(
                         value: _candidateType,
                         items: _candidateTypeOptions
-                            .map((t) => DropdownMenuItem<String>(value: t, child: Text(t)))
+                            .map(
+                              (t) => DropdownMenuItem<String>(
+                                value: t,
+                                child: Text(t),
+                              ),
+                            )
                             .toList(),
-                        decoration: const InputDecoration(labelText: 'Candidate type'),
+                        decoration: const InputDecoration(
+                          labelText: 'Candidate type',
+                        ),
                         onChanged: (v) => setState(() {
                           _candidateType = v;
                           if (_candidateType != 'Political Party') {
                             _partyNameCtrl.clear();
                           }
                         }),
-                        validator: (v) => v == null || v.isEmpty ? 'Select a candidate type' : null,
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Select a candidate type'
+                            : null,
                       ),
                     ],
-                    if (_candidateType == 'Political Party') ...[const SizedBox.shrink()],
+                    if (_candidateType == 'Political Party') ...[
+                      const SizedBox.shrink(),
+                    ],
                     DropdownButtonFormField<String>(
                       value: _organization,
                       items: _orgOptions
-                          .map((o) => DropdownMenuItem<String>(value: o, child: Text(o)))
+                          .map(
+                            (o) => DropdownMenuItem<String>(
+                              value: o,
+                              child: Text(o),
+                            ),
+                          )
                           .toList(),
-                      decoration: const InputDecoration(labelText: 'Organization'),
+                      decoration: const InputDecoration(
+                        labelText: 'Organization',
+                      ),
                       onChanged: (v) => setState(() {
                         _organization = v;
                         _position = null;
+                        // Auto-select program based on organization
+                        if (v == 'SITE') {
+                          _course = 'BSIT';
+                          _section = null;
+                        } else if (v == 'PAFE') {
+                          _course = 'BTLED';
+                          _section = null;
+                        } else if (v == 'AFPROTECHS') {
+                          _course = 'BFPT';
+                          _section = null;
+                        } else if (v == 'USG') {
+                          // USG shows all programs, so don't auto-select
+                          _course = null;
+                          _section = null;
+                        }
                       }),
-                      validator: (v) => v == null || v.isEmpty ? 'Select an organization' : null,
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Select an organization'
+                          : null,
                     ),
                     if (_organization != null) ...[
                       DropdownButtonFormField<String>(
                         value: _position,
-                        items: (_positionsByOrg[_organization] ?? const <String>[]) 
-                            .map((p) => DropdownMenuItem<String>(value: p, child: Text(p)))
-                            .toList(),
-                        decoration: const InputDecoration(labelText: 'Position'),
+                        items:
+                            (_positionsByOrg[_organization] ?? const <String>[])
+                                .map(
+                                  (p) => DropdownMenuItem<String>(
+                                    value: p,
+                                    child: Text(p),
+                                  ),
+                                )
+                                .toList(),
+                        decoration: const InputDecoration(
+                          labelText: 'Position',
+                        ),
                         onChanged: (v) => setState(() => _position = v),
-                        validator: (v) => v == null || v.isEmpty ? 'Select a position' : null,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Select a position' : null,
                       ),
                     ],
-                    DropdownButtonFormField<String>(
-                      value: _course,
-                      items: _courseOptions
-                          .map((c) => DropdownMenuItem<String>(value: c, child: Text(c)))
-                          .toList(),
-                      decoration: const InputDecoration(labelText: 'Program'),
-                      onChanged: (v) => setState(() {
-                        _course = v;
-                        _section = null;
-                      }),
-                      validator: (v) => v == null || v.isEmpty ? 'Select a course' : null,
-                    ),
+                    // Only show Program dropdown for USG organization
+                    if (_organization == 'USG') ...[
+                      DropdownButtonFormField<String>(
+                        value: _course,
+                        items: _courseOptions
+                            .map(
+                              (c) => DropdownMenuItem<String>(
+                                value: c,
+                                child: Text(c),
+                              ),
+                            )
+                            .toList(),
+                        decoration: const InputDecoration(labelText: 'Program'),
+                        onChanged: (v) => setState(() {
+                          _course = v;
+                          _section = null;
+                        }),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Select a course' : null,
+                      ),
+                    ] else if (_organization != null) ...[
+                      // Show auto-selected program as read-only for SITE, PAFE, AFPROTECHS
+                      InputDecorator(
+                        decoration: const InputDecoration(labelText: 'Program'),
+                        child: Text(_course ?? ''),
+                      ),
+                    ],
                     if (_course != null) ...[
                       DropdownButtonFormField<String>(
                         value: _section,
-                        items: (_sectionsByCourse[_course] ?? const <String>[]) 
-                            .map((s) => DropdownMenuItem<String>(value: s, child: Text(s)))
+                        items: (_sectionsByCourse[_course] ?? const <String>[])
+                            .map(
+                              (s) => DropdownMenuItem<String>(
+                                value: s,
+                                child: Text(s),
+                              ),
+                            )
                             .toList(),
                         decoration: const InputDecoration(labelText: 'Section'),
                         onChanged: (v) => setState(() => _section = v),
-                        validator: (v) => v == null || v.isEmpty ? 'Select a section' : null,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Select a section' : null,
                       ),
                     ],
                     TextFormField(
@@ -405,15 +577,19 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                       decoration: const InputDecoration(labelText: 'Platform'),
                       keyboardType: TextInputType.multiline,
                       maxLines: 4,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
                     const SizedBox(height: 8),
                     if (_pickedImage != null) ...[
                       AspectRatio(
-                        aspectRatio: 16/9,
+                        aspectRatio: 16 / 9,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.file(File(_pickedImage!.path), fit: BoxFit.cover),
+                          child: Image.file(
+                            File(_pickedImage!.path),
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -421,9 +597,15 @@ class _CandidateRegistrationScreenState extends State<CandidateRegistrationScree
                     Align(
                       alignment: Alignment.centerLeft,
                       child: OutlinedButton.icon(
-                        onPressed: (_submitting || _pickingMedia) ? null : _pickImage,
+                        onPressed: (_submitting || _pickingMedia)
+                            ? null
+                            : _pickImage,
                         icon: const Icon(Icons.photo_library),
-                        label: Text(_pickedImage == null ? 'Upload Candidate Photo (optional)' : 'Change Candidate Photo'),
+                        label: Text(
+                          _pickedImage == null
+                              ? 'Upload Candidate Photo (optional)'
+                              : 'Change Candidate Photo',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
