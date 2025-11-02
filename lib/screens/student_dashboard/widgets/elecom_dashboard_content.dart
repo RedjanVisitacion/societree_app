@@ -88,9 +88,11 @@ class ElecomDashboardContent extends StatelessWidget {
               },
               child: AbsorbPointer(
                 child: TextField(
+                  style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     hintText: 'Search Party/candidates',
-                    prefixIcon: const Icon(Icons.search),
+                    hintStyle: TextStyle(color: Colors.black.withOpacity(0.5)),
+                    prefixIcon: const Icon(Icons.search, color: Colors.black54),
                     filled: true,
                     fillColor: const Color(0xFFF1EEF8),
                     contentPadding: const EdgeInsets.symmetric(vertical: 14),

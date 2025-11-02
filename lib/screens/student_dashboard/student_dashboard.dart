@@ -9,6 +9,7 @@ import 'package:societree_app/screens/student_dashboard/widgets/student_dashboar
 import 'package:societree_app/screens/student_dashboard/widgets/student_bottom_nav_bar.dart';
 import 'package:societree_app/screens/student_dashboard/widgets/elecom_dashboard_content.dart';
 import 'package:societree_app/screens/student_dashboard/widgets/party_details_sheet.dart';
+import 'package:societree_app/main.dart';
 
 /// Custom scroll physics for smooth momentum scrolling similar to Facebook
 class SmoothMomentumScrollPhysics extends ClampingScrollPhysics {
@@ -203,38 +204,66 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isElecom = widget.orgName.toUpperCase().contains('ELECOM');
-    return Scaffold(
-      appBar: StudentDashboardAppBar.build(
-        context: context,
-        orgName: widget.orgName,
-        isElecom: isElecom,
-        onMenuStateChanged: (isOpen) {
-          setState(() => _isMenuOpen = isOpen);
-        },
-      ),
-      body: isElecom && _isMenuOpen
-          ? Stack(
-              children: [
-                _buildBodyContent(theme, isElecom),
-                Positioned.fill(
-                  child: ClipRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                      child: Container(color: Colors.white.withOpacity(0.1)),
-                    ),
-                  ),
+
+    return ListenableBuilder(
+      listenable: themeNotifier,
+      builder: (context, child) {
+        // Only apply dark theme to ELECOM student dashboard
+        final shouldUseDarkMode = isElecom && themeNotifier.isDarkMode;
+        final dashboardTheme = shouldUseDarkMode
+            ? ThemeData(
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: Colors.deepPurple,
+                  brightness: Brightness.dark,
                 ),
-              ],
-            )
-          : _buildBodyContent(theme, isElecom),
-      bottomNavigationBar: StudentBottomNavBar.build(
-        context: context,
-        isElecom: isElecom,
-        isMenuOpen: _isMenuOpen,
-        isVisible: _isBottomBarVisible,
-      ),
+                useMaterial3: true,
+              )
+            : Theme.of(context);
+
+        return Theme(
+          data: dashboardTheme,
+          child: Scaffold(
+            appBar: StudentDashboardAppBar.build(
+              context: context,
+              orgName: widget.orgName,
+              isElecom: isElecom,
+              onMenuStateChanged: (isOpen) {
+                setState(() => _isMenuOpen = isOpen);
+              },
+            ),
+            body: isElecom && _isMenuOpen
+                ? Stack(
+                    children: [
+                      Builder(
+                        builder: (context) =>
+                            _buildBodyContent(Theme.of(context), isElecom),
+                      ),
+                      Positioned.fill(
+                        child: ClipRect(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                            child: Container(
+                              color: Colors.white.withOpacity(0.1),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Builder(
+                    builder: (context) =>
+                        _buildBodyContent(Theme.of(context), isElecom),
+                  ),
+            bottomNavigationBar: StudentBottomNavBar.build(
+              context: context,
+              isElecom: isElecom,
+              isMenuOpen: _isMenuOpen,
+              isVisible: _isBottomBarVisible,
+            ),
+          ),
+        );
+      },
     );
   }
 
