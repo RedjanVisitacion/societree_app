@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:societree_app/screens/elecom_admin/candidates_screen.dart';
 import 'dart:ui';
 import '../login_screen.dart';
 import '../../services/api_service.dart';
 import 'candidate_registration_screen.dart';
-import 'delete_candidates_screen.dart';
-import 'candidates_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:societree_app/config/api_config.dart';
