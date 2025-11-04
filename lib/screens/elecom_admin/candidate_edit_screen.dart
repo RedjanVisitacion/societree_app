@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:societree_app/config/api_config.dart';
 import 'package:societree_app/services/api_service.dart';
 
@@ -30,10 +28,7 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
   String? _candidateType; // Independent or Political Party
   bool _submitting = false;
 
-  final ImagePicker _picker = ImagePicker();
-  XFile? _photo;
-  XFile? _partyLogo;
-  bool _picking = false;
+  // Photos/logos are not editable in update mode
 
   // Dropdown state mirroring registration screen
   final List<String> _orgOptions = const ['USG', 'SITE', 'PAFE', 'AFPROTECHS'];
@@ -139,24 +134,7 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
     super.dispose();
   }
 
-  Future<void> _pick({required bool party}) async {
-    if (_picking) return;
-    setState(() => _picking = true);
-    try {
-      final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-      if (img != null) {
-        setState(() {
-          if (party) {
-            _partyLogo = img;
-          } else {
-            _photo = img;
-          }
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _picking = false);
-    }
-  }
+  // Photo/logo picking removed in update mode
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -186,42 +164,19 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
       if (_candidateType == 'Political Party') {
         if (changed(_partyNameCtrl.text, (orig['party_name'] ?? '').toString())) anyChanged = true;
       }
-      if (_photo != null || _partyLogo != null) anyChanged = true;
+      // Photos/logos are not updated here
       if (!anyChanged) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No changes to save')));
         }
         return;
       }
-      // Enforce client-side size hints (~900KB like backend)
-      String? photoPath = _photo?.path;
-      String? logoPath = _partyLogo?.path;
-      try {
-        if (photoPath != null) {
-          final len = await File(photoPath).length();
-          if (len > 900 * 1024) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Photo is larger than 900KB, uploading without photo.')),
-              );
-            }
-            photoPath = null;
-          }
+      if (!anyChanged) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No changes to save')));
         }
-      } catch (_) {}
-      try {
-        if (logoPath != null) {
-          final len = await File(logoPath).length();
-          if (len > 900 * 1024) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Party logo is larger than 900KB, submitting without logo.')),
-              );
-            }
-            logoPath = null;
-          }
-        }
-      } catch (_) {}
+        return;
+      }
 
       final res = await _api.updateCandidateMultipart(
         candidateId: id,
@@ -236,8 +191,8 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
         platform: _platformCtrl.text.trim(),
         candidateType: _candidateType,
         partyName: _candidateType == 'Political Party' ? _partyNameCtrl.text.trim() : null,
-        photoFilePath: photoPath,
-        partyLogoFilePath: _candidateType == 'Political Party' ? logoPath : null,
+        photoFilePath: null,
+        partyLogoFilePath: null,
       );
       final success = res['success'] == true;
       final msg = (res['message'] ?? (success ? 'Candidate updated' : 'Failed to update')).toString();
@@ -362,25 +317,6 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
               maxLines: 4,
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _picking ? null : () => _pick(party: false),
-                    icon: const Icon(Icons.photo),
-                    label: Text(_photo == null ? 'Change Photo (optional)' : 'Photo selected'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _candidateType == 'Political Party' ? (_picking ? null : () => _pick(party: true)) : null,
-                    icon: const Icon(Icons.flag),
-                    label: Text(_partyLogo == null ? 'Change Party Logo (optional)' : 'Logo selected'),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _submitting ? null : _submit,

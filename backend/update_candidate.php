@@ -100,10 +100,24 @@ if ($isMultipart) {
     elseif ($ext === 'jpg' || $ext === 'jpeg') $photo_mime = 'image/jpeg';
     elseif ($ext === 'webp') $photo_mime = 'image/webp';
     else $photo_mime = 'application/octet-stream';
-    $maxBlobBytes = 900 * 1024;
     $size = (int)($_FILES['photo']['size'] ?? 0);
-    if ($size > 0 && $size <= $maxBlobBytes) {
+    if ($size > 0) {
       $photo_blob = file_get_contents($_FILES['photo']['tmp_name']);
+      // remove any filesystem fallback for this candidate
+      $baseDir = __DIR__ . '/uploads/candidates';
+      $safeBase = null; $sid = $student_id ?? '';
+      if ($sid !== '') { $safeBase = preg_replace('/[^a-zA-Z0-9_\-]+/', '_', strtolower(trim($sid))); }
+      if (!$safeBase) {
+        $fn = $first_name ?? ''; $mn = $middle_name ?? ''; $ln = $last_name ?? '';
+        $base = trim(($fn . ' ' . $mn . ' ' . $ln));
+        if ($base !== '') { $safeBase = preg_replace('/[^a-zA-Z0-9_\-]+/', '_', strtolower($base)); }
+      }
+      if ($safeBase) {
+        foreach (['jpg','jpeg','png','webp'] as $e) {
+          $p = $baseDir . '/' . $safeBase . '.' . $e;
+          if (is_file($p)) { @unlink($p); }
+        }
+      }
     }
   }
   $party_logo_blob = null; $party_logo_mime = null;
@@ -113,10 +127,19 @@ if ($isMultipart) {
     elseif ($ext === 'jpg' || $ext === 'jpeg') $party_logo_mime = 'image/jpeg';
     elseif ($ext === 'webp') $party_logo_mime = 'image/webp';
     else $party_logo_mime = 'application/octet-stream';
-    $maxBlobBytes = 900 * 1024;
     $size = (int)($_FILES['party_logo']['size'] ?? 0);
-    if ($size > 0 && $size <= $maxBlobBytes) {
+    if ($size > 0) {
       $party_logo_blob = file_get_contents($_FILES['party_logo']['tmp_name']);
+      // remove any filesystem fallback for this party
+      $logosDir = __DIR__ . '/uploads/party_logos';
+      $pname = ($party_name ?? '') !== '' ? $party_name : '';
+      if ($pname !== '') {
+        $safe = strtolower(preg_replace('/[^a-zA-Z0-9_\-]+/', '_', trim($pname)));
+        foreach (['jpg','jpeg','png','webp'] as $e) {
+          $p = $logosDir . '/' . $safe . '.' . $e;
+          if (is_file($p)) { @unlink($p); }
+        }
+      }
     }
   }
 } else {
