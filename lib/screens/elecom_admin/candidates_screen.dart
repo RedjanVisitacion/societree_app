@@ -85,7 +85,8 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
           _partyHasLogo[name] = p['has_logo'] == true;
           // Prefer constructing the dynamic logo endpoint used by the student dashboard
           if (_partyHasLogo[name] == true) {
-            _partyLogoUrl[name] = apiBaseUrl + '/get_party_logo.php?name=' + Uri.encodeComponent(name);
+            final cb = DateTime.now().millisecondsSinceEpoch.toString();
+            _partyLogoUrl[name] = apiBaseUrl + '/get_party_logo.php?name=' + Uri.encodeComponent(name) + '&cb=' + cb;
           } else {
             final url = p['logo_url'];
             if (url is String && url.isNotEmpty) _partyLogoUrl[name] = url;

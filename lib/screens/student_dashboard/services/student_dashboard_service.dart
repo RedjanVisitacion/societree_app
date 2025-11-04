@@ -14,8 +14,12 @@ class StudentDashboardService {
         final items = raw.map<Map<String, dynamic>>((e) {
           final name = (e['party_name'] ?? '').toString();
           final hasLogo = e['has_logo'] == true || e['has_logo'] == 1;
+          final direct = (e['logo_url'] ?? '').toString();
+          final cb = DateTime.now().millisecondsSinceEpoch.toString();
           final logoUrl = hasLogo
-              ? '$baseUrl/get_party_logo.php?name=' + Uri.encodeComponent(name)
+              ? (direct.isNotEmpty
+                  ? direct
+                  : ('$baseUrl/get_party_logo.php?name=' + Uri.encodeComponent(name) + '&cb=' + cb))
               : null;
           return {'name': name, 'logoUrl': logoUrl};
         }).toList();

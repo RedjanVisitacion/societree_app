@@ -126,6 +126,7 @@ class AdminHomeScreen extends StatelessWidget {
                                                   source: ImageSource.gallery,
                                                   imageQuality: 85,
                                                 );
+                                                if (!ctx.mounted) return;
                                                 if (picked != null) {
                                                   setState(() => partyLogo = picked);
                                                 }
@@ -148,6 +149,7 @@ class AdminHomeScreen extends StatelessWidget {
                                                 source: ImageSource.gallery,
                                                 imageQuality: 85,
                                               );
+                                              if (!ctx.mounted) return;
                                               if (picked != null) {
                                                 setState(() => partyLogo = picked);
                                               }
@@ -255,6 +257,7 @@ class AdminHomeScreen extends StatelessWidget {
                                                                           source: ImageSource.gallery,
                                                                           imageQuality: 85,
                                                                         );
+                                                                        if (!ctx2.mounted) return;
                                                                         if (picked != null) {
                                                                           setState2(() => partyLogo = picked);
                                                                         }
@@ -277,6 +280,7 @@ class AdminHomeScreen extends StatelessWidget {
                                                                         source: ImageSource.gallery,
                                                                         imageQuality: 85,
                                                                       );
+                                                                      if (!ctx2.mounted) return;
                                                                       if (picked != null) {
                                                                         setState2(() => partyLogo = picked);
                                                                       }
