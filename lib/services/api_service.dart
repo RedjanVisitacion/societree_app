@@ -212,6 +212,56 @@ class ApiService {
     return _decode(res);
   }
 
+  Future<Map<String, dynamic>> updateCandidateMultipart({
+    required int candidateId,
+    String? studentId,
+    String? firstName,
+    String? middleName,
+    String? lastName,
+    String? organization,
+    String? position,
+    String? course,
+    String? yearSection,
+    String? platform,
+    String? candidateType,
+    String? partyName,
+    String? photoFilePath,
+    String? partyLogoFilePath,
+  }) async {
+    final uri = Uri.parse('$baseUrl/update_candidate.php');
+    final req = http.MultipartRequest('POST', uri);
+    req.fields['candidate_id'] = candidateId.toString();
+    void addField(String key, String? value) {
+      if (value != null) {
+        req.fields[key] = value;
+      }
+    }
+    addField('student_id', studentId);
+    addField('first_name', firstName);
+    addField('middle_name', middleName);
+    addField('last_name', lastName);
+    addField('organization', organization);
+    addField('position', position);
+    addField('course', course);
+    addField('year_section', yearSection);
+    addField('platform', platform);
+    addField('candidate_type', candidateType);
+    addField('party_name', partyName);
+    if (photoFilePath != null && photoFilePath.isNotEmpty) {
+      try {
+        req.files.add(await http.MultipartFile.fromPath('photo', photoFilePath));
+      } catch (_) {}
+    }
+    if (partyLogoFilePath != null && partyLogoFilePath.isNotEmpty) {
+      try {
+        req.files.add(await http.MultipartFile.fromPath('party_logo', partyLogoFilePath));
+      } catch (_) {}
+    }
+    final streamed = await req.send().timeout(_timeout);
+    final res = await http.Response.fromStream(streamed);
+    return _decode(res);
+  }
+
   Map<String, dynamic> _decode(http.Response res) {
     try {
       final body = jsonDecode(res.body) as Map<String, dynamic>;

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:societree_app/config/api_config.dart';
 import 'package:societree_app/services/api_service.dart';
+import 'package:societree_app/screens/elecom_admin/candidate_edit_screen.dart';
 
 class CandidatesScreen extends StatefulWidget {
   const CandidatesScreen({super.key});
@@ -545,7 +546,27 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                                                           }
                                                         },
                                                   )
-                                                : null,
+                                                : Wrap(
+                                                    spacing: 0,
+                                                    children: [
+                                                      IconButton(
+                                                        tooltip: 'Edit',
+                                                        visualDensity: const VisualDensity(horizontal: -3, vertical: -3),
+                                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                        icon: const Icon(Icons.edit, size: 20),
+                                                        onPressed: () async {
+                                                          final updated = await Navigator.of(context).push<bool>(
+                                                            MaterialPageRoute(
+                                                              builder: (_) => CandidateEditScreen(candidate: c),
+                                                            ),
+                                                          );
+                                                          if (updated == true) {
+                                                            await _load();
+                                                          }
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
                                           );
                                         }),
                                       ],
