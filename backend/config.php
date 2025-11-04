@@ -100,7 +100,6 @@ function db_connect() {
 function read_json_body() {
   $raw = file_get_contents('php://input');
   if ($raw === false) { return null; }
-  // Trim and drop UTF-8 BOM if present
   $raw = ltrim($raw);
   if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
     $raw = substr($raw, 3);
@@ -111,4 +110,45 @@ function read_json_body() {
     return null;
   }
   return $data;
+}
+
+define('CLOUDINARY_CLOUD', 'dhhzkqmso');
+define('CLOUDINARY_KEY', '871914741883427');
+define('CLOUDINARY_SECRET', 'ihwwUCjI92s8tBpm24Vqj2CIWJk');
+
+function cloudinary_upload(string $filePath, string $folder, string $publicId = '') {
+  if (!is_file($filePath)) { return [false, null, 'file']; }
+  $cloud = CLOUDINARY_CLOUD; $key = CLOUDINARY_KEY; $secret = CLOUDINARY_SECRET;
+  if (!$cloud || !$key || !$secret) { return [false, null, 'config']; }
+  $url = 'https://api.cloudinary.com/v1_1/' . $cloud . '/image/upload';
+  $timestamp = time();
+  $params = ['folder' => $folder, 'timestamp' => $timestamp];
+  if ($publicId !== '') { $params['public_id'] = $publicId; }
+  ksort($params);
+  $toSign = '';
+  foreach ($params as $k => $v) { if ($toSign !== '') { $toSign .= '&'; } $toSign .= $k . '=' . $v; }
+  $signature = sha1($toSign . $secret);
+  $post = [
+    'api_key' => $key,
+    'timestamp' => $timestamp,
+    'signature' => $signature,
+    'folder' => $folder,
+  ];
+  if ($publicId !== '') { $post['public_id'] = $publicId; }
+  if (function_exists('curl_file_create')) {
+    $post['file'] = curl_file_create($filePath);
+  } else {
+    $post['file'] = '@' . $filePath;
+  }
+  $ch = curl_init($url);
+  curl_setopt($ch, CURLOPT_POST, true);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  $res = curl_exec($ch);
+  if ($res === false) { $err = curl_error($ch); curl_close($ch); return [false, null, $err ?: 'curl']; }
+  $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+  $data = json_decode($res, true);
+  if ($code >= 200 && $code < 300 && isset($data['secure_url'])) { return [true, $data['secure_url'], null]; }
+  return [false, null, isset($data['error']['message']) ? $data['error']['message'] : 'upload'];
 }

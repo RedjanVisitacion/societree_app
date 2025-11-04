@@ -93,8 +93,9 @@ if ($isMultipart) {
   $party_name    = array_key_exists('party_name', $_POST) ? trim($_POST['party_name']) : null;
   $provided      = $_POST;
 
-  $photo_blob = null; $photo_mime = null;
+  $photo_blob = null; $photo_mime = null; $photo_received = false; $photo_saved = false; $photo_error = null; $photo_url = null;
   if (!empty($_FILES['photo']) && is_uploaded_file($_FILES['photo']['tmp_name'])) {
+    $photo_received = true;
     $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
     if ($ext === 'png') $photo_mime = 'image/png';
     elseif ($ext === 'jpg' || $ext === 'jpeg') $photo_mime = 'image/jpeg';
@@ -102,26 +103,19 @@ if ($isMultipart) {
     else $photo_mime = 'application/octet-stream';
     $size = (int)($_FILES['photo']['size'] ?? 0);
     if ($size > 0) {
-      $photo_blob = file_get_contents($_FILES['photo']['tmp_name']);
-      // remove any filesystem fallback for this candidate
-      $baseDir = __DIR__ . '/uploads/candidates';
-      $safeBase = null; $sid = $student_id ?? '';
-      if ($sid !== '') { $safeBase = preg_replace('/[^a-zA-Z0-9_\-]+/', '_', strtolower(trim($sid))); }
-      if (!$safeBase) {
-        $fn = $first_name ?? ''; $mn = $middle_name ?? ''; $ln = $last_name ?? '';
-        $base = trim(($fn . ' ' . $mn . ' ' . $ln));
-        if ($base !== '') { $safeBase = preg_replace('/[^a-zA-Z0-9_\-]+/', '_', strtolower($base)); }
-      }
-      if ($safeBase) {
-        foreach (['jpg','jpeg','png','webp'] as $e) {
-          $p = $baseDir . '/' . $safeBase . '.' . $e;
-          if (is_file($p)) { @unlink($p); }
-        }
-      }
+      $pubId = ($student_id && $student_id !== '') ? $student_id : ( ($first_name ?? '') . '_' . ($last_name ?? '') . '_' . time());
+      list($ok, $url, $err) = cloudinary_upload($_FILES['photo']['tmp_name'], 'candidates', $pubId);
+      if ($ok) { $photo_url = $url; $photo_saved = true; $photo_blob = null; $photo_mime = null; }
+      else { $photo_error = $err; }
     }
+  } elseif (!empty($_FILES['photo'])) {
+    // present but not a valid uploaded file
+    $photo_received = true;
+    $photo_error = $_FILES['photo']['error'] ?? 'unknown';
   }
-  $party_logo_blob = null; $party_logo_mime = null;
+  $party_logo_blob = null; $party_logo_mime = null; $logo_received = false; $logo_saved = false; $logo_error = null; $party_logo_url = null;
   if (!empty($_FILES['party_logo']) && is_uploaded_file($_FILES['party_logo']['tmp_name'])) {
+    $logo_received = true;
     $ext = strtolower(pathinfo($_FILES['party_logo']['name'], PATHINFO_EXTENSION));
     if ($ext === 'png') $party_logo_mime = 'image/png';
     elseif ($ext === 'jpg' || $ext === 'jpeg') $party_logo_mime = 'image/jpeg';
@@ -129,18 +123,15 @@ if ($isMultipart) {
     else $party_logo_mime = 'application/octet-stream';
     $size = (int)($_FILES['party_logo']['size'] ?? 0);
     if ($size > 0) {
-      $party_logo_blob = file_get_contents($_FILES['party_logo']['tmp_name']);
-      // remove any filesystem fallback for this party
-      $logosDir = __DIR__ . '/uploads/party_logos';
-      $pname = ($party_name ?? '') !== '' ? $party_name : '';
-      if ($pname !== '') {
-        $safe = strtolower(preg_replace('/[^a-zA-Z0-9_\-]+/', '_', trim($pname)));
-        foreach (['jpg','jpeg','png','webp'] as $e) {
-          $p = $logosDir . '/' . $safe . '.' . $e;
-          if (is_file($p)) { @unlink($p); }
-        }
-      }
+      $pname = ($party_name ?? '') !== '' ? $party_name : ('party_' . time());
+      $pubId = preg_replace('/[^a-zA-Z0-9_\-]+/','_', strtolower($pname));
+      list($ok, $url, $err) = cloudinary_upload($_FILES['party_logo']['tmp_name'], 'party_logos', $pubId);
+      if ($ok) { $party_logo_url = $url; $logo_saved = true; $party_logo_blob = null; $party_logo_mime = null; }
+      else { $logo_error = $err; }
     }
+  } elseif (!empty($_FILES['party_logo'])) {
+    $logo_received = true;
+    $logo_error = $_FILES['party_logo']['error'] ?? 'unknown';
   }
 } else {
   $data = read_json_body();
@@ -188,6 +179,14 @@ $map = [
   'candidate_type' => ($wasProvided('candidate_type') ? ($candidate_type === '' ? null : $candidate_type) : null),
   'party_name'     => ($wasProvided('party_name') ? ($party_name === '' ? null : $party_name) : null),
 ];
+// Ensure URL columns exist
+if (!column_exists($mysqli, 'candidates_registration', 'photo_url')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN photo_url VARCHAR(1024) NULL");
+}
+if (!column_exists($mysqli, 'candidates_registration', 'party_logo_url')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_logo_url VARCHAR(1024) NULL");
+}
+
 foreach ($map as $col => $val) {
   $inputKey = ($col === 'program') ? 'course' : $col;
   if ($wasProvided($inputKey)) {
@@ -195,10 +194,12 @@ foreach ($map as $col => $val) {
     $params[] = $val; $types .= 's';
   }
 }
-if ($photo_blob !== null) { $fields[] = 'photo_blob = ?'; $params[] = $photo_blob; $types .= 'b'; }
-if ($photo_mime !== null) { $fields[] = 'photo_mime = ?'; $params[] = $photo_mime; $types .= 's'; }
-if ($party_logo_blob !== null) { $fields[] = 'party_logo_blob = ?'; $params[] = $party_logo_blob; $types .= 'b'; }
-if ($party_logo_mime !== null) { $fields[] = 'party_logo_mime = ?'; $params[] = $party_logo_mime; $types .= 's'; }
+if ($photo_url !== null) { $fields[] = 'photo_url = ?'; $params[] = $photo_url; $types .= 's'; $fields[] = 'photo_blob = NULL'; $fields[] = 'photo_mime = NULL'; }
+elseif ($photo_blob !== null) { $fields[] = 'photo_blob = ?'; $params[] = $photo_blob; $types .= 'b'; if ($photo_mime !== null) { $fields[] = 'photo_mime = ?'; $params[] = $photo_mime; $types .= 's'; } }
+elseif ($photo_mime !== null) { $fields[] = 'photo_mime = ?'; $params[] = $photo_mime; $types .= 's'; }
+if ($party_logo_url !== null) { $fields[] = 'party_logo_url = ?'; $params[] = $party_logo_url; $types .= 's'; $fields[] = 'party_logo_blob = NULL'; $fields[] = 'party_logo_mime = NULL'; }
+elseif ($party_logo_blob !== null) { $fields[] = 'party_logo_blob = ?'; $params[] = $party_logo_blob; $types .= 'b'; if ($party_logo_mime !== null) { $fields[] = 'party_logo_mime = ?'; $params[] = $party_logo_mime; $types .= 's'; } }
+elseif ($party_logo_mime !== null) { $fields[] = 'party_logo_mime = ?'; $params[] = $party_logo_mime; $types .= 's'; }
 
 if (empty($fields)) {
   echo json_encode(['success' => true, 'message' => 'Nothing to update']);
@@ -229,4 +230,25 @@ if (!$stmt->execute()) {
 }
 $stmt->close();
 
-echo json_encode(['success' => true, 'message' => 'Candidate updated']);
+$msgParts = [];
+$msgParts[] = 'Candidate updated';
+if (isset($photo_received)) {
+  if ($photo_received) {
+    if ($photo_saved) { $msgParts[] = '(photo saved)'; }
+    else if ($photo_error !== null) { $msgParts[] = '(photo upload error: ' . $photo_error . ')'; }
+    else { $msgParts[] = '(photo not saved)'; }
+  } else {
+    $msgParts[] = '(no new photo)';
+  }
+}
+if (isset($logo_received)) {
+  if ($logo_received) {
+    if ($logo_saved) { $msgParts[] = '(logo saved)'; }
+    else if ($logo_error !== null) { $msgParts[] = '(logo upload error: ' . $logo_error . ')'; }
+    else { $msgParts[] = '(logo not saved)'; }
+  } else {
+    $msgParts[] = '(no new logo)';
+  }
+}
+
+echo json_encode(['success' => true, 'message' => implode(' ', $msgParts)]);

@@ -37,54 +37,19 @@ if ($isMultipart) {
   $platform     = trim($_POST['platform'] ?? '');
   $candidate_type = trim($_POST['candidate_type'] ?? '');
   $party_name     = trim($_POST['party_name'] ?? '');
-  $photo_blob   = null;
-  $photo_mime   = null;
+  $photo_url    = null;
   if (!empty($_FILES['photo']) && is_uploaded_file($_FILES['photo']['tmp_name'])) {
-    $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-    if ($ext === 'png') $photo_mime = 'image/png';
-    elseif ($ext === 'jpg' || $ext === 'jpeg') $photo_mime = 'image/jpeg';
-    elseif ($ext === 'webp') $photo_mime = 'image/webp';
-    else $photo_mime = 'application/octet-stream';
-    $maxBlobBytes = 900 * 1024; // ~900KB to stay well under typical max_allowed_packet
-    $size = (int)($_FILES['photo']['size'] ?? 0);
-    if ($size > 0 && $size <= $maxBlobBytes) {
-      $photo_blob = file_get_contents($_FILES['photo']['tmp_name']);
-    } else {
-      // Save to filesystem instead; let get_candidate_photo.php serve it later.
-      $baseDir = __DIR__ . '/uploads/candidates';
-      if (!is_dir($baseDir)) { @mkdir($baseDir, 0777, true); }
-      $baseName = $student_id !== '' ? $student_id : trim($first_name . ' ' . $middle_name . ' ' . $last_name);
-      $safe = strtolower(preg_replace('/[^a-zA-Z0-9_\-]+/', '_', trim($baseName)));
-      if ($safe === '') { $safe = 'candidate_' . time(); }
-      $target = $baseDir . '/' . $safe . '.' . ($ext ?: 'jpg');
-      @move_uploaded_file($_FILES['photo']['tmp_name'], $target);
-      // Keep photo_blob null to avoid DB large payload
-      $photo_blob = null;
-    }
+    $pubId = ($student_id !== '') ? $student_id : (preg_replace('/\s+/', '_', trim(($first_name.'_'.$last_name))) . '_' . time());
+    list($ok, $url, $err) = cloudinary_upload($_FILES['photo']['tmp_name'], 'candidates', $pubId);
+    if ($ok) { $photo_url = $url; }
   }
   // Optional party logo (multipart)
-  $party_logo_blob = null;
-  $party_logo_mime = null;
+  $party_logo_url  = null;
   if (!empty($_FILES['party_logo']) && is_uploaded_file($_FILES['party_logo']['tmp_name'])) {
-    $ext = strtolower(pathinfo($_FILES['party_logo']['name'], PATHINFO_EXTENSION));
-    if ($ext === 'png') $party_logo_mime = 'image/png';
-    elseif ($ext === 'jpg' || $ext === 'jpeg') $party_logo_mime = 'image/jpeg';
-    elseif ($ext === 'webp') $party_logo_mime = 'image/webp';
-    else $party_logo_mime = 'application/octet-stream';
-    $maxBlobBytes = 900 * 1024;
-    $size = (int)($_FILES['party_logo']['size'] ?? 0);
-    if ($size > 0 && $size <= $maxBlobBytes) {
-      $party_logo_blob = file_get_contents($_FILES['party_logo']['tmp_name']);
-    } else {
-      // Optionally save to filesystem (not currently read by get_party_logo.php)
-      $logosDir = __DIR__ . '/uploads/party_logos';
-      if (!is_dir($logosDir)) { @mkdir($logosDir, 0777, true); }
-      $pname = $party_name !== '' ? $party_name : 'party_' . time();
-      $safe = strtolower(preg_replace('/[^a-zA-Z0-9_\-]+/', '_', trim($pname)));
-      $target = $logosDir . '/' . $safe . '.' . ($ext ?: 'jpg');
-      @move_uploaded_file($_FILES['party_logo']['tmp_name'], $target);
-      $party_logo_blob = null; // avoid DB large payload
-    }
+    $pname = $party_name !== '' ? $party_name : 'party_' . time();
+    $pubId = strtolower(preg_replace('/[^a-zA-Z0-9_\-]+/','_', $pname));
+    list($ok, $url, $err) = cloudinary_upload($_FILES['party_logo']['tmp_name'], 'party_logos', $pubId);
+    if ($ok) { $party_logo_url = $url; }
   }
 } else {
   $data = read_json_body();
@@ -105,24 +70,31 @@ if ($isMultipart) {
   $candidate_type = isset($data['candidate_type']) ? trim($data['candidate_type']) : '';
   $party_name     = isset($data['party_name']) ? trim($data['party_name']) : '';
   $photo_b64    = $data['photo_base64'] ?? null;
-  $photo_mime   = isset($data['photo_mime']) ? trim($data['photo_mime']) : null;
-  $photo_blob   = null;
+  $photo_url    = null;
   if (is_string($photo_b64) && $photo_b64 !== '') {
     $decoded = base64_decode($photo_b64, true);
     if ($decoded !== false) {
-      $photo_blob = $decoded;
-      if (!$photo_mime) { $photo_mime = 'application/octet-stream'; }
+      $tmp = tempnam(sys_get_temp_dir(), 'cphoto_');
+      file_put_contents($tmp, $decoded);
+      $pubId = ($student_id !== '') ? $student_id : (preg_replace('/\s+/', '_', trim(($first_name.'_'.$last_name))) . '_' . time());
+      list($ok, $url, $err) = cloudinary_upload($tmp, 'candidates', $pubId);
+      @unlink($tmp);
+      if ($ok) { $photo_url = $url; }
     }
   }
   // Optional party logo via JSON (base64)
-  $party_logo_blob = null;
-  $party_logo_mime = isset($data['party_logo_mime']) ? trim($data['party_logo_mime']) : null;
   $party_logo_b64  = $data['party_logo_base64'] ?? null;
+  $party_logo_url  = null;
   if (is_string($party_logo_b64) && $party_logo_b64 !== '') {
     $decoded = base64_decode($party_logo_b64, true);
     if ($decoded !== false) {
-      $party_logo_blob = $decoded;
-      if (!$party_logo_mime) { $party_logo_mime = 'application/octet-stream'; }
+      $tmp = tempnam(sys_get_temp_dir(), 'plogo_');
+      file_put_contents($tmp, $decoded);
+      $pname = $party_name !== '' ? $party_name : 'party_' . time();
+      $pubId = strtolower(preg_replace('/[^a-zA-Z0-9_\-]+/','_', $pname));
+      list($ok, $url, $err) = cloudinary_upload($tmp, 'party_logos', $pubId);
+      @unlink($tmp);
+      if ($ok) { $party_logo_url = $url; }
     }
   }
 }
@@ -217,17 +189,12 @@ function column_exists(mysqli $mysqli, string $table, string $column): bool {
   return false;
 }
 
-// Add missing columns safely
-if (!column_exists($mysqli, 'candidates_registration', 'photo_blob')) {
-  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN photo_blob LONGBLOB NULL");
+// Add missing URL columns and drop blob columns
+if (!column_exists($mysqli, 'candidates_registration', 'photo_url')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN photo_url VARCHAR(1024) NULL");
 }
-if (!column_exists($mysqli, 'candidates_registration', 'photo_mime')) {
-  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN photo_mime VARCHAR(64) NULL");
-}
-// Drop legacy photo_url if present (guard with DESCRIBE)
-if (column_exists($mysqli, 'candidates_registration', 'photo_url')) {
-  @$mysqli->query("ALTER TABLE candidates_registration DROP COLUMN photo_url");
-}
+@$mysqli->query("ALTER TABLE candidates_registration DROP COLUMN IF EXISTS photo_blob");
+@$mysqli->query("ALTER TABLE candidates_registration DROP COLUMN IF EXISTS photo_mime");
 if (!column_exists($mysqli, 'candidates_registration', 'candidate_type')) {
   @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN candidate_type VARCHAR(50) NULL");
 }
@@ -235,61 +202,36 @@ if (!column_exists($mysqli, 'candidates_registration', 'party_name')) {
   @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_name VARCHAR(150) NULL");
 }
 if (!column_exists($mysqli, 'candidates_registration', 'party_logo_blob')) {
-  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_logo_blob LONGBLOB NULL");
+  // intentionally not creating blob column anymore
 }
 if (!column_exists($mysqli, 'candidates_registration', 'party_logo_mime')) {
-  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_logo_mime VARCHAR(64) NULL");
+  // intentionally not creating mime column anymore
 }
+if (!column_exists($mysqli, 'candidates_registration', 'party_logo_url')) {
+  @$mysqli->query("ALTER TABLE candidates_registration ADD COLUMN party_logo_url VARCHAR(1024) NULL");
+}
+@$mysqli->query("ALTER TABLE candidates_registration DROP COLUMN IF EXISTS party_logo_blob");
+@$mysqli->query("ALTER TABLE candidates_registration DROP COLUMN IF EXISTS party_logo_mime");
 
 // Prepare insert (robust to older schema)
 $has_candidate_type_col = column_exists($mysqli, 'candidates_registration', 'candidate_type');
 $has_party_name_col = column_exists($mysqli, 'candidates_registration', 'party_name');
 
 $middle = ($middle_name === '') ? null : $middle_name;
-$photo_blob_val = $photo_blob; // may be null
-$photo_mime_val = $photo_mime ? $photo_mime : null;
-$party_logo_blob_val = $party_logo_blob; // may be null
-$party_logo_mime_val = $party_logo_mime ? $party_logo_mime : null;
+$photo_url_val  = $photo_url;
+$party_logo_url_val  = $party_logo_url;
 
 if ($has_candidate_type_col && $has_party_name_col) {
-  $sql = "INSERT INTO candidates_registration
-    (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, candidate_type, party_name, photo_blob, photo_mime, party_logo_blob, party_logo_mime)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  $sql = "INSERT INTO `candidates_registration`
+    (`student_id`, `first_name`, `middle_name`, `last_name`, `organization`, `position`, `program`, `year_section`, `platform`, `candidate_type`, `party_name`, `photo_url`, `party_logo_url`)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
   if (!($stmt = $mysqli->prepare($sql))) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Failed preparing statement']);
+    echo json_encode(['success' => false, 'message' => 'Failed preparing statement', 'error' => $mysqli->error]);
     exit();
   }
   $candidate_type_val = ($candidate_type === '' ? null : $candidate_type);
   $party_name_val = ($party_name === '' ? null : $party_name);
-  $stmt->bind_param(
-    'sssssssssssssss',
-    $student_id,
-    $first_name,
-    $middle,
-    $last_name,
-    $organization,
-    $position,
-    $course,
-    $year_section,
-    $platform,
-    $candidate_type_val,
-    $party_name_val,
-    $photo_blob_val,
-    $photo_mime_val,
-    $party_logo_blob_val,
-    $party_logo_mime_val
-  );
-} else {
-  // Legacy fallback without candidate type/party name columns
-  $sql = "INSERT INTO candidates_registration
-    (student_id, first_name, middle_name, last_name, organization, position, program, year_section, platform, photo_blob, photo_mime, party_logo_blob, party_logo_mime)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-  if (!($stmt = $mysqli->prepare($sql))) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Failed preparing statement (legacy)']);
-    exit();
-  }
   $stmt->bind_param(
     'sssssssssssss',
     $student_id,
@@ -301,10 +243,34 @@ if ($has_candidate_type_col && $has_party_name_col) {
     $course,
     $year_section,
     $platform,
-    $photo_blob_val,
-    $photo_mime_val,
-    $party_logo_blob_val,
-    $party_logo_mime_val
+    $candidate_type_val,
+    $party_name_val,
+    $photo_url_val,
+    $party_logo_url_val
+  );
+} else {
+  // Legacy fallback without candidate type/party name columns
+  $sql = "INSERT INTO `candidates_registration`
+    (`student_id`, `first_name`, `middle_name`, `last_name`, `organization`, `position`, `program`, `year_section`, `platform`, `photo_url`, `party_logo_url`)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  if (!($stmt = $mysqli->prepare($sql))) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Failed preparing statement (legacy)', 'error' => $mysqli->error]);
+    exit();
+  }
+  $stmt->bind_param(
+    'sssssssssss',
+    $student_id,
+    $first_name,
+    $middle,
+    $last_name,
+    $organization,
+    $position,
+    $course,
+    $year_section,
+    $platform,
+    $photo_url_val,
+    $party_logo_url_val
   );
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:societree_app/config/api_config.dart';
 import 'package:societree_app/services/api_service.dart';
 
@@ -28,7 +29,10 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
   String? _candidateType; // Independent or Political Party
   bool _submitting = false;
 
-  // Photos/logos are not editable in update mode
+  // Allow updating candidate photo only
+  final ImagePicker _picker = ImagePicker();
+  XFile? _photo;
+  bool _picking = false;
 
   // Dropdown state mirroring registration screen
   final List<String> _orgOptions = const ['USG', 'SITE', 'PAFE', 'AFPROTECHS'];
@@ -134,7 +138,18 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
     super.dispose();
   }
 
-  // Photo/logo picking removed in update mode
+  Future<void> _pickPhoto() async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    try {
+      final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (img != null) {
+        setState(() { _photo = img; });
+      }
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -164,7 +179,8 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
       if (_candidateType == 'Political Party') {
         if (changed(_partyNameCtrl.text, (orig['party_name'] ?? '').toString())) anyChanged = true;
       }
-      // Photos/logos are not updated here
+      // Photo update is allowed
+      if (_photo != null) anyChanged = true;
       if (!anyChanged) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No changes to save')));
@@ -191,7 +207,7 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
         platform: _platformCtrl.text.trim(),
         candidateType: _candidateType,
         partyName: _candidateType == 'Political Party' ? _partyNameCtrl.text.trim() : null,
-        photoFilePath: null,
+        photoFilePath: _photo?.path,
         partyLogoFilePath: null,
       );
       final success = res['success'] == true;
@@ -308,6 +324,8 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
               TextFormField(
                 controller: _partyNameCtrl,
                 decoration: const InputDecoration(labelText: 'Party Name'),
+                readOnly: true,
+                enableInteractiveSelection: false,
               ),
               const SizedBox(height: 8),
             ],
@@ -317,6 +335,17 @@ class _CandidateEditScreenState extends State<CandidateEditScreen> {
               maxLines: 4,
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _picking ? null : _pickPhoto,
+                    icon: const Icon(Icons.photo),
+                    label: Text(_photo == null ? 'Change Photo (optional)' : 'Photo selected'),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _submitting ? null : _submit,

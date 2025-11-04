@@ -266,25 +266,17 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
     }
 
     String? _photoUrlFor(Map<String, dynamic> e) {
-      // Try direct url fields first
-      final direct = (e['photo_url'] ?? e['photo'] ?? e['image'] ?? e['profile'] ?? e['avatar'] ?? e['img_url'] ?? e['url']);
-      if (direct is String && direct.isNotEmpty) {
-        if (direct.startsWith('http')) return direct;
-        return (apiBaseUrl + '/' + direct)
-            .replaceAll('//', '/')
-            .replaceFirst('http:/', 'http://')
-            .replaceFirst('https:/', 'https://');
-      }
       final first = (e['first_name'] ?? '').toString();
       final middle = (e['middle_name'] ?? '').toString();
       final last = (e['last_name'] ?? '').toString();
       final name = [first, middle, last].where((s) => s.isNotEmpty).join(' ').replaceAll(RegExp(r'\s+'), ' ').trim();
       final sid = (e['student_id'] ?? e['studentId'] ?? '').toString();
-      if (name.isNotEmpty) {
-        return apiBaseUrl + '/get_candidate_photo.php?name=' + Uri.encodeComponent(name);
-      }
+      final cb = DateTime.now().millisecondsSinceEpoch.toString();
       if (sid.isNotEmpty) {
-        return apiBaseUrl + '/get_candidate_photo.php?student_id=' + Uri.encodeComponent(sid);
+        return apiBaseUrl + '/get_candidate_photo.php?student_id=' + Uri.encodeComponent(sid) + '&cb=' + cb;
+      }
+      if (name.isNotEmpty) {
+        return apiBaseUrl + '/get_candidate_photo.php?name=' + Uri.encodeComponent(name) + '&cb=' + cb;
       }
       return null;
     }

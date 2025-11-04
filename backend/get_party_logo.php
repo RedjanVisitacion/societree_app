@@ -13,20 +13,26 @@ if ($party === '') {
 }
 
 // 1) Try DB blob first
-$stmt = $mysqli->prepare("SELECT party_logo_blob, party_logo_mime FROM candidates_registration WHERE party_name = ? AND party_logo_blob IS NOT NULL ORDER BY id DESC LIMIT 1");
+$stmt = $mysqli->prepare("SELECT party_logo_url, party_logo_blob, party_logo_mime FROM candidates_registration WHERE party_name = ? ORDER BY id DESC LIMIT 1");
 if ($stmt) {
   $stmt->bind_param('s', $party);
   $stmt->execute();
   $stmt->store_result();
   if ($stmt->num_rows > 0) {
-    $stmt->bind_result($blob, $mime);
+    $stmt->bind_result($url, $blob, $mime);
     $stmt->fetch();
     $stmt->close();
-    if (!$mime) { $mime = 'application/octet-stream'; }
-    header('Content-Type: ' . $mime);
-    header('Cache-Control: public, max-age=3600');
-    echo $blob;
-    exit();
+    if (is_string($url) && $url !== '') {
+      header('Location: ' . $url, true, 302);
+      exit();
+    }
+    if ($blob !== null) {
+      if (!$mime) { $mime = 'application/octet-stream'; }
+      header('Content-Type: ' . $mime);
+      header('Cache-Control: public, max-age=3600');
+      echo $blob;
+      exit();
+    }
   }
   $stmt->close();
 }
